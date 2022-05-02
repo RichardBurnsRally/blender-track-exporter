@@ -1,3 +1,4 @@
+<title></title>
 ## [Home](index.md) | [Download](download.md) | [Guide](guide.md) | Errors | [GitHub](https://github.com/RichardBurnsRally/blender-track-exporter/issues)
 
 These are the error codes emitted by the addon. This is intended as a reference.

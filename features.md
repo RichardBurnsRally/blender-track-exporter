@@ -1,3 +1,4 @@
+<title></title>
 ## [Home](index.md) | [Download](download.md) | Guide | [Errors](errors.md) | [GitHub](https://github.com/RichardBurnsRally/blender-track-exporter/issues)
 
 **[« Back to guide](guide.md)**

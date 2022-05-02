@@ -1,4 +1,4 @@
-<title>Test</title>
+<title></title>
 ## Home | [Download](download.md) | [Guide](guide.md) | [Errors](errors.md) | [GitHub](https://github.com/RichardBurnsRally/blender-track-exporter/issues)
 
 ![RBR Blender addon](assets/splash.png)

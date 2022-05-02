@@ -1,3 +1,4 @@
+<title></title>
 ## [Home](index.md) | Download | [Guide](guide.md) | [Errors](errors.md) | [GitHub](https://github.com/RichardBurnsRally/blender-track-exporter/issues)
 
 ## Installation
