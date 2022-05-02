@@ -1,4 +1,4 @@
-## [Home](index.md) | [Download](download.md) | Guide | [GitHub](https://github.com/RichardBurnsRally/blender-track-exporter/issues)
+## [Home](index.md) | [Download](download.md) | Guide | [Errors](errors.md) | [GitHub](https://github.com/RichardBurnsRally/blender-track-exporter/issues)
 
 This is not a full track creation guide, just the very basics to get started
 exporting stages to RBR. Eventually we'll have a full guide on best practices
@@ -162,6 +162,13 @@ special rules around this, check their Discord.
 
 With that, click "Export" and your stage should be created in your export
 directory.
+
+I suggest opening the console `Window > Toggle System Console` because the addon
+will log what it is doing, useful for when exports fail or when exports take a
+few minutes if your stage is complicated. When exports do fail, the addon should
+emit error codes like `E0101`. See [Errors](errors.md) for explanations of error
+codes emitted by the addon. If you don't get an error code, please let me know,
+because that's probably a bug.
 
 ## 1.5. Testing
 

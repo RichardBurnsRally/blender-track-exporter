@@ -1,4 +1,4 @@
-## [Home](index.md) | Download | [Guide](guide.md) | [GitHub](https://github.com/RichardBurnsRally/blender-track-exporter/issues)
+## [Home](index.md) | Download | [Guide](guide.md) | [Errors](errors.md) | [GitHub](https://github.com/RichardBurnsRally/blender-track-exporter/issues)
 
 ## Installation
 
@@ -10,7 +10,7 @@ older version.
 
 ## Releases
 
-### v0.2.0 [⭳ (zip)](releases/blender-track-exporter-v0.2.0.zip)
+### v0.2.0 [⭳ (zip)](https://github.com/RichardBurnsRally/blender-track-exporter/raw/master/releases/rbr-track-exporter-v0.2.0.zip)
 
 The first public beta release. This is not a finished product, there are still
 missing features and bugs to fix, but it's good enough to export tracks.
