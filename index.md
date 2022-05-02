@@ -5,7 +5,7 @@
 
 This is a Blender addon for exporting tracks for Richard Burns Rally. The
 ultimate goal is to understand and support every feature available in RBR, and
-to supercede use of the custom tool Wallaby, which has a number of limitations.
+to supersede use of the custom tool Wallaby, which has a number of limitations.
 Thank you to **Wally** for the creation of that tool, without it RBR would have
 probably died by now.
 
