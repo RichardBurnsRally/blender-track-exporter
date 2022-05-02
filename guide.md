@@ -1,4 +1,4 @@
-## blendRBR | [Home](index.md) | [Download](download.md) | Guide | [GitHub](https://github.com/RichardBurnsRally/blender-track-exporter/issues)
+## [Home](index.md) | [Download](download.md) | Guide | [GitHub](https://github.com/RichardBurnsRally/blender-track-exporter/issues)
 
 This is not a full track creation guide, just the very basics to get started
 exporting stages to RBR. Eventually we'll have a full guide on best practices

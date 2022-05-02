@@ -1,4 +1,4 @@
-## blendRBR | Home | [Download](download.md) | [Guide](guide.md) | [GitHub](https://github.com/RichardBurnsRally/blender-track-exporter/issues)
+## Home | [Download](download.md) | [Guide](guide.md) | [GitHub](https://github.com/RichardBurnsRally/blender-track-exporter/issues)
 
 ![RBR Blender addon](assets/splash.png)
 

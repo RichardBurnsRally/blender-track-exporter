@@ -1,4 +1,4 @@
-## blendRBR | [Home](index.md) | Download | [Guide](guide.md) | [GitHub](https://github.com/RichardBurnsRally/blender-track-exporter/issues)
+## [Home](index.md) | Download | [Guide](guide.md) | [GitHub](https://github.com/RichardBurnsRally/blender-track-exporter/issues)
 
 ## Installation
 
