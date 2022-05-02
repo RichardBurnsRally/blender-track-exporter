@@ -9,7 +9,7 @@ Discord server](https://discord.gg/VMySc2fPCH).
 
 Note that since the addon is still in beta, things are subject to change.
 
-## 0. Addon Setup
+## Addon Setup
 
 After installing the addon, you should set up your RBR export directories. Find
 the RBR track addon in your list of addons in the blender preferences pane, and
@@ -26,7 +26,7 @@ saving, it won't work.
 
 ![Save preferences](assets/addon-preferences-save.png)
 
-## 1. "Hello World"
+## "Hello World"
 
 We'll go over the minimum set of things you need to export your first track for
 RBR. Naturally this will only use a couple of features (also known as RBR object
@@ -36,7 +36,7 @@ _This is not a blender tutorial - just a tutorial on how to export a track._
 
 Create a new blend file and clear out any objects so you have a blank canvas.
 
-## 1.1. Ground
+### Ground
 
 Let's start by creating the ground mesh. Go to `Add > Mesh > Grid` to create a
 simple flat ground plane, and scale it up by 10 so it's big enough to drive on.
@@ -125,7 +125,7 @@ panel under the "RBR Material Map Editor" heading:
 Tap `Esc` a few times to back out of the material map editor, and switch back to
 the 3D viewport.
 
-## 1.2. Driveline
+### Driveline
 
 Click `Add > Curve > Bezier` and set the "RBR Object Type" to "Driveline". This
 curve defines the path the car is expected to take through the stage. It also
@@ -143,7 +143,7 @@ Technically these aren't needed just for quickly testing, but they are needed
 for your stage to function correctly. Try to ensure the driveline covers from
 _before_ the start of the stage until _after_ the end to avoid accidental penalties.
 
-## 1.3. Car Location
+### Car Location
 
 Click `Add > Empty > Arrows` and set the "RBR Object Type" to "Car Location".
 This is the place the car spawns when the stage is loaded. It should be slightly
@@ -152,7 +152,7 @@ behind the start line, or the driver will get a penalty when the stage starts.
 The car spawns pointing along the `Y` axis of the arrows, with the rear axle
 aligned with the `X` axis.
 
-## 1.4. Export Settings
+### Export Settings
 
 Go to the scene panel and find "RBR Export Settings". This is where you pick the
 directory you want to export to, and give your stage an ID for testing. The ID
@@ -171,7 +171,7 @@ emit error codes like `E0101`. See [Errors](errors.md) for explanations of error
 codes emitted by the addon. If you don't get an error code, please let me know,
 because that's probably a bug.
 
-## 1.5. Testing
+### Testing
 
 Actually driving the stage requires different steps depending on your RBR
 installation. The addon writes `TrackSettings<track-id>.ini` file with your
@@ -193,7 +193,7 @@ Length=1.0
 
 After that, launch your game, and drive your new stage!
 
-## 1.6. Conclusion
+## Conclusion
 
 Hopefully that gives you a quick overview of where to start with the track
 exporter addon. I must emphasise that this is the _bare minimum_ needed to get a
