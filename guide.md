@@ -19,7 +19,9 @@ at the bottom click "Add RBR export directory".
 
 You can add as many as you like for different RBR installations. Name them
 something suitable with the left hand field, and make sure the directory points
-to the `Maps` directory of the RBR installation.
+to the `Maps` directory of the RBR installation. Set the RBR distribution type
+appropriately - for `RSF` stages will be placed into their own subdirectory
+automatically, but `Original` will just be placed into the `Maps` directory.
 
 When you're done, save the preferences. If you just close the window without
 saving, it won't work.
@@ -134,8 +136,9 @@ the object properties pane. A few pacenotes are special events defining the
 start line, two splits, the finish line, and the end of the stage. The end of
 the stage will immediately end the stage when the car reaches it.
 
-Scale the driveline curve up to fill the area. Make sure you apply the scale!
-Add the special events and space them out along the driveline:
+Scale the driveline curve up to fill the area. Make sure you apply the scale
+(see `Object > Apply > Scale`), or the pacenotes won't appear in the correct
+places. Add the special events and space them out along the driveline:
 
 ![Driveline](assets/hello-world/driveline.png)
 
@@ -174,22 +177,12 @@ because that's probably a bug.
 ### Testing
 
 Actually driving the stage requires different steps depending on your RBR
-installation. The addon writes `TrackSettings<track-id>.ini` file with your
-track settings, which may need manually merging into your `TrackSettings.ini`
-file. Similarly, you may need to add an entry to `tracks.ini` in order for your
-track to show up in the list. Check the instructions for your RBR distribution.
+installation. For RSF, you should be able to find your stage in the `Test
+stages` category without having to edit any other game files. For other plugins,
+e.g. the Czech plugin, you'll need to manually append the contents of:
 
-My testing installation uses the Czech plugin, so I need to add this to
-`tracks.ini`:
-
-```ini
-[Map101]
-TrackName="Maps\track-101"
-Particles="Maps\ps_british"
-StageName="Blender Export Test"
-Surface=0
-Length=1.0
-```
+- `Tracks<track-id>.ini` to `Tracks.ini`
+- `TrackSettings<track-id>.ini` to `TrackSettings.ini`
 
 After that, launch your game, and drive your new stage!
 
