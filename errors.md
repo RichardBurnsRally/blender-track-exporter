@@ -744,7 +744,7 @@ other at the top). This can be fixed by either subdividing that segment (like
 curve 2) or tweaking the handles so they point slightly towards each other at
 the top (like curve 3).
 
-![Curve examples](assets/driveline-subdivision-example.png)
+![Curve examples](assets/error-codes/driveline-subdivision-example.png)
 
 The addon is strict about this condition, because the game will interpolate the
 segment backwards in case 1, which could lead to corner cutting penalties.
