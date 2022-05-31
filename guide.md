@@ -78,16 +78,33 @@ Switch to material preview mode to view what it will look like in game.
 
 ![Material preview mode](assets/hello-world/material-preview-mode.png)
 
-Your mesh will appear totally black - we're missing a couple of things! Switch
-to the "Scene Properties" panel, and scroll down to find "RBR Track Settings".
-This governs the supported surface types for your stage (`dry/damp/wet`) and the
-weather settings supported by the stage. Click the `+` button to add a weather
-type to the stage.
+Your mesh will appear totally black - we're missing a couple of things!
+
+Switch to the "Scene Properties" panel, and scroll down to find "RBR Track
+Settings". This governs the supported surface types for your stage
+(`dry/damp/wet`) and the weather settings supported by the stage. By default, we
+are exporting a morning "tint set" (and the resulting track data is stored in
+files with `_M` suffix). One track can have multiple tint sets, and in blender
+each tint set requires a new scene. For now, we'll just leave it as morning and
+only export one tint set.
 
 ![RBR Track Settings](assets/hello-world/rbr-track-settings.png)
 
-That will add a simple "crisp clear" weather. We'll leave everything as default
-for now. The addon provides a real time preview which exactly matches the way
+Click the `+` button to add a weather type to the stage.
+
+This will create an empty slot for putting a new weather type in. In Blender,
+weathers are represented by `World` objects, and you can select the default
+world from the dropdown box which appears:
+
+![RBR Track Settings](assets/hello-world/rbr-track-settings-world.png)
+
+The default is "crisp clear" weather. We'll leave everything as default, but you
+can tweak the values by going to the `World` panel (the button immediately below
+the scene panel button) and finding the "RBR Track Settings" panel there.
+
+![RBR Track Settings](assets/hello-world/rbr-track-settings-weather.png)
+
+The addon provides a real time preview which exactly matches the way
 your stage will appear in game with the same weather settings. In the 3D editor
 view, click `Add > Light > Sun`, and set the "RBR Object Type" to "Sun". The sun
 direction will be taken from this object.

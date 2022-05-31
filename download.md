@@ -12,6 +12,33 @@ using an older version.
 
 ## Releases
 
+### v0.2.2 [⭳ (zip)](https://github.com/RichardBurnsRally/blender-track-exporter/raw/master/releases/rbr-track-exporter-v0.2.2.zip)
+
+**What's Changed**
+
+- One tint set (morning, noon, evening, overcast) per scene. This is a big
+  change to the addon, since previously we had multiple tint sets in a single
+  scene. When you load up your blender file, the addon will make linked
+  duplicates of your scene for each of the tint sets you were using (the ones
+  which had weathers), and migrates the weathers for each one. Your original
+  scene is not touched! You should verify that the newly created scenes export
+  as expected before removing your old scene. This change means you can now have
+  different cameras and drivelines for each tint set, and arranging those
+  cameras makes sense because they each have their own timeline.
+- Individual weather settings have been moved to `World`. These were previously
+  all stored in the scene, but moving them to the world means that you can now
+  link them between tint set scenes or files. Each weather you have has a
+  `World` object associated with it, and each `Scene` links to these weathers in
+  a similar way to the old weather system.
+- Add support for exporting vertex colours from new style attributes
+- Add support for exporting UV maps from new style attributes
+- Fix infinite recursion bug for weirdly degenerate geometry in the collision
+  mesh
+- Add the remaining TrackSettings.ini options. These won't be visible in
+  blender, they change things like shading on the car and script characters.
+- Fix sky shader for blender 3.2. There was an undocumented change in the camera
+  data node.
+
 ### v0.2.1 [⭳ (zip)](https://github.com/RichardBurnsRally/blender-track-exporter/raw/master/releases/rbr-track-exporter-v0.2.1.zip)
 
 **What's Changed**

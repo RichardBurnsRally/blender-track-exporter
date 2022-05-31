@@ -586,9 +586,9 @@ enabled for export, or that your "Near" geom block ground object is marked
 
 ## E0110
 
-The addon found a missing vertex colour layer in the mesh. The mesh is using a
-material which has a vertex colour node set to a non-existent layer. Either
-change that node layer or create the layer in your mesh.
+The addon found a missing attribute in the mesh. The mesh is using a material
+which has a vertex colour or attribute node set to a non-existent layer. Either
+change that node attribute or create the attribute in your mesh.
 
 ## E0111
 
@@ -830,3 +830,10 @@ A material in an exported object is using a material which is linked to the
 object, not to the data (i.e. the mesh). Check the material in question and mark
 it as linked to the data. The button for this is on the right of the text box
 where you can rename the material.
+
+## E0151
+
+One of your exported materials is using an attribute node as an input to a UV
+socket. This is supported in limited circumstances: the attribute referenced
+must be a Vector stored in the "Face Corner" (aka `CORNER`) or "Vertex" data
+(aka `POINT`) .
