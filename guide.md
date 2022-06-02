@@ -176,8 +176,9 @@ aligned with the `X` axis.
 
 Go to the scene panel and find "RBR Export Settings". This is where you pick the
 directory you want to export to, and give your stage an ID for testing. The ID
-you choose depends on your installation, for me track 101 is free. RSF has
-special rules around this, check their Discord.
+you choose depends on your installation - you need to choose an ID which isn't
+already in use (or you'll overwrite those files). Check your maps folder and
+pick a sufficiently large number - for me, track 101 is free.
 
 ![Export](assets/hello-world/export.png)
 
