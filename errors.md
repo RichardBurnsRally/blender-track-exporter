@@ -698,6 +698,8 @@ blocks must have exactly one diffuse texture and no specular texture.
 
 ## E0130
 
+[This error is no longer emitted by the addon]
+
 Your file has interactive objects which are missing their corresponding shape
 collision meshes. Each interactive object must have a child shape collision mesh
 object.
@@ -837,3 +839,32 @@ One of your exported materials is using an attribute node as an input to a UV
 socket. This is supported in limited circumstances: the attribute referenced
 must be a Vector stored in the "Face Corner" (aka `CORNER`) or "Vertex" data
 (aka `POINT`) .
+
+## E0152
+
+An interactive object is scaled, but the addon cannot automatically apply the
+scale because these objects can be instanced. Apply the scale on this object
+manually.
+
+## E0153
+
+A shape collision mesh is scaled, but the addon cannot automatically apply the
+scale because these objects can be instanced. Apply the scale on this object
+manually.
+
+## E0154
+
+An interactive object has multiple child collision meshes, but it can only have
+one. Remove all but one of the collision meshes.
+
+## E0155
+
+An interactive object has no child collision meshes, but it must have one.
+Add a simple mesh as a child object, and give it the type "Interactive Object
+Collision Mesh".
+
+## E0156
+
+A collision mesh is not convex. Shape collision meshes and interactive object
+collision meshes must be convex or they will not work in game. Try to apply the
+"Convex Hull" operator on your mesh.

@@ -12,6 +12,24 @@ using an older version.
 
 ## Releases
 
+### v0.2.3 [⭳ (zip)](https://github.com/RichardBurnsRally/blender-track-exporter/raw/master/releases/rbr-track-exporter-v0.2.3.zip)
+
+**What's Changed**
+
+- Rework exporter cleanup to be much more robust. The exporter should never leave any extra data behind after export. Previously it would do a reasonable job cleaning up _objects_ but leave lots of duplicated meshes and materials behind. Now it should be totally reliable in cleaning up any duplicated data.
+- Source object names are propagated through the exporter better. This should improve a number of error messages, which would reference objects which were duplicated (hence the names changed). Not all error messages have been switched to this yet.
+- Rework interactive objects (see below)
+- Add 'Instancer' object type. Objects set to this type will have the "Make instances real" operator auto applied (with 'use hierarchy'=True) before detecting other RBR object types for export. You should check that this produces the right thing before blindly exporting using this object type.
+- Improve export of materials with multiple output nodes. Cycles nodes will now always be ignored.
+
+**Interactive object rework**
+
+- Rework interactive objects. Your file will auto migrate to the new structure, which is very similar to the old structure. The collision mesh object must still be a child of the interactive object, but the RBR object type is now "Interactive Object Collision Mesh", not "Shape Collision Mesh". The object kind is now set on the collision mesh object, not the interactive object.
+- Interactive objects can now have modifiers applied upon export (there is a checkbox in the RBR object settings for this). This will cause the object mesh to be cloned for each instance of the object (and they will no longer be instanced in the RBR files). The collision meshes _do not get modifiers applied_ because there are strict limits on the counts. The kind of modifiers that will be useful here are ones which alter colour information, for example to transfer shading data from the ground mesh. If you have hundreds of objects using this setting, export will be fast if they only use a single blender material, and slow if they use more than one. This is a blender limitation, the operators to "separate by material" are slow when there are lots of objects.
+- Fix a bug for resolving interactive object and shape collision mesh data by name. Now you can use interactive objects from libraries reliably.
+- Enforce that scale is pre-applied before export for interactive objects and shape collision meshes. Scaling does not work properly in game.
+- Check that collision meshes (shape colmesh and interactive object colmesh) are convex when exporting. They will have no collision in game if they are not.
+
 ### v0.2.2 [⭳ (zip)](https://github.com/RichardBurnsRally/blender-track-exporter/raw/master/releases/rbr-track-exporter-v0.2.2.zip)
 
 **What's Changed**
