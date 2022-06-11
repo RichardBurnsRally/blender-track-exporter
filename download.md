@@ -12,6 +12,14 @@ using an older version.
 
 ## Releases
 
+### v0.2.4 [⭳ (zip)](https://github.com/RichardBurnsRally/blender-track-exporter/raw/master/releases/rbr-track-exporter-v0.2.4.zip)
+
+**What's Changed**
+
+- Add fallback materials to the material map editor. These can be set from the "overview" mode in a given texture by pressing the `F` key. This will use the currently selected material (in the material palette panel). Note that this is _per condition_ (dry/damp/wet, new/normal/worn). For simple textures you don't even need to draw material maps now, just set the fallback material and that will be used everywhere. The fallback material is equivalent to having an infinitely large material map with the previous addon version - it's used as a last resort.
+- Make convexity check for shape collision meshes and interactive objects more robust.
+- Fix helicam export.
+
 ### v0.2.3 [⭳ (zip)](https://github.com/RichardBurnsRally/blender-track-exporter/raw/master/releases/rbr-track-exporter-v0.2.3.zip)
 
 **What's Changed**

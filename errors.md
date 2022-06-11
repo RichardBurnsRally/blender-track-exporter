@@ -561,14 +561,16 @@ to car location, and try exporting again.
 
 ## E0107
 
+[This error should no longer be emitted by the addon now that fallback materials
+exist. If you see it post v0.2.4, please report it.]
+
 One of the textures you are using for collision mesh generation does not have
 suitable material maps. Some of the UV triangles ended up outside of the bounds
 of your material map definitions. Note that the addon moves your UV triangles
 towards the image area, you may need to account for that. You can also use
 repeated material maps to automatically cover triangles outside of the image
 area, but those triangles must be less than half the width and height of the
-image itself. Alternatively, expand or create more material maps to cover all
-UV triangles, or move the UV triangles within the existing maps.
+image itself.
 
 ## E0108
 

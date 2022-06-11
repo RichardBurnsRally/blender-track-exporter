@@ -141,6 +141,25 @@ panel under the "RBR Material Map Editor" heading:
 
 ![Material editor](assets/hello-world/mat-editor-paint.png)
 
+"Repeating" material maps like the one above can only work with UV triangles
+that are less than half the width and height of the image (the technical reason
+for this is that RBR does not support UV wrapping on the collision mesh). For
+the larger triangles, we need a "fallback material" which will be used anywhere
+the fine grained maps don't cover.
+
+Tap `Esc` to go back to the overview mode. The "Fallback Material" is displayed
+in the bottom left. Tap the `F` key to set the fallback material from the
+currently selected material in the material palette.
+
+![Material editor](assets/hello-world/mat-editor-fallback.png)
+
+This fallback material and the materials painted within each material map can
+be different for each dry/damp/wet and new/normal/worn combination. You can
+select which one you are currently editing from the scene panel "Viewport"
+properties.
+
+![Surface types](assets/hello-world/surface-types.png)
+
 Tap `Esc` a few times to back out of the material map editor, and switch back to
 the 3D viewport.
 
