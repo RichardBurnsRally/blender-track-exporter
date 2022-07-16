@@ -215,7 +215,7 @@ interacted with.
 
 | Blender Addon     | Wallaby
 |-------------------|-------------------------
-| No support yet    | Full support [0]
+| Full support      | Full support [0]
 
 [0] Click to place, but altering fence positions after placing requires manual
 entry of coordinates

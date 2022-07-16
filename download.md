@@ -12,6 +12,13 @@ using an older version.
 
 ## Releases
 
+### v0.2.5 [⭳ (zip)](https://github.com/RichardBurnsRally/blender-track-exporter/raw/master/releases/rbr-track-exporter-v0.2.5.zip)
+
+**What's Changed**
+
+- Exportable fences (for the `fnc` file). There's a new object type, "Fence", which allows exporting simple meshes to in-game fences. The mesh must be very simple: each vertex is the base of a pole, and the edges between the vertices define the tape or netting. A simple string of edges works best - try creating the fence as a "poly" curve, then convert it to a mesh later. You can also define a vertex colour shading layer which allows defining a multiplicative shading per fence pole. It must be a "Vertex Byte Color" type.
+- Use faster convex mesh check (thanks `aesthetic_sofa`).
+
 ### v0.2.4 [⭳ (zip)](https://github.com/RichardBurnsRally/blender-track-exporter/raw/master/releases/rbr-track-exporter-v0.2.4.zip)
 
 **What's Changed**
