@@ -870,3 +870,8 @@ Collision Mesh".
 A collision mesh is not convex. Shape collision meshes and interactive object
 collision meshes must be convex or they will not work in game. Try to apply the
 "Convex Hull" operator on your mesh.
+
+## E0157
+
+A wet surface object contains faces which are not quads. All faces of wet
+surfaces must be quads: no trianges or other n-gons.

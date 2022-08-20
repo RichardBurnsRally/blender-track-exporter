@@ -12,6 +12,17 @@ using an older version.
 
 ## Releases
 
+### v0.2.6 [⭳ (zip)](https://github.com/RichardBurnsRally/blender-track-exporter/raw/master/releases/rbr-track-exporter-v0.2.6.zip)
+
+**What's Changed**
+
+- Exportable wet and water surfaces. There's a new RBR object type, "Wet Surface", which is expected to be a simple mesh consisting of only quads. Each quad is made into a wet surface object. This plane defines the visual water splash effect and gives information to the physics engine about the depth of the water, so it should be placed at the surface of the water. It can be used either for water splashes (active in all weathers, dry/damp/wet), or for puddles (active only in wet weather).
+- Fix fallback material bug. Previously it was possible to open a new material editor without closing the previous one, and setting a fallback material would set the material for all active editors. Now it is impossible to open more than one editor - you must close the open editor before opening another.
+- Raise max pacenote position from 10k to 100k. So 10km+ stages will have an easier editing experience.
+- Be more delicate when setting up sky node automatically. Now it automatically sets up the sky node for the Eevee output, leaving the user nodes for the Cycles output untouched. This makes it easier to switch between skyboxes without losing Cycles baking setups.
+- Fix issue with blender shaders causing the colour to become black when the blending/alpha value is 0.
+- Remove the RBR/Blender shader mode switch. It's now always in RBR mode. The blender mode was intended for helping baking, but it's better to use a separate cycles only output node for that.
+
 ### v0.2.5 [⭳ (zip)](https://github.com/RichardBurnsRally/blender-track-exporter/raw/master/releases/rbr-track-exporter-v0.2.5.zip)
 
 **What's Changed**

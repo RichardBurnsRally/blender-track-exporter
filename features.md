@@ -37,18 +37,16 @@ it works well. Geometry further than 40m away from the stage is lower poly
 | Blender Addon                 | Wallaby
 |-------------------------------|------------------------
 | No shadow support yet [0]     | Named "Ground meshes"
-| No animated texture UVs [1]   | One diffuse texture
+|                               | One diffuse texture
 |                               | No specular texture
-|                               | No level of detail [2]
-|                               | Partial shadow support [3]
+|                               | No level of detail [1]
+|                               | Partial shadow support [2]
 |                               | No animated texture UVs
 
 [0] Shadow texture generation is not yet complete, but will be soon<br>
-[1] Animated texture UVs are parsed, and we know how they work. We just need to
-add them to the exporter and importer.<br>
-[2] Everything is marked "near", so even if zfar was set correctly, which it
+[1] Everything is marked "near", so even if zfar was set correctly, which it
 isn't, the maximum view distance would be 600m.<br>
-[3] Partial shadow generation via a web service. There is a limit on the size of the track.<br>
+[2] Partial shadow generation via a web service. There is a limit on the size of the track.<br>
 
 ### 🌲 Object blocks
 
@@ -135,9 +133,7 @@ splashes, but wet surfaces only work under wet conditions.
 
 | Blender Addon      | Wallaby
 |--------------------|-------------------------
-| Not supported [0]  | Not supported
-
-[0] The structures are reverse engineered, they just aren't exportable yet. See https://github.com/RichardBurnsRally/blender-rbr-track-addon/issues/243.
+| Full support       | Not supported
 
 ### 🌐 Ground collision mesh
 
@@ -234,6 +230,8 @@ at points along the driveline, with some element of randomness.
 ### 🐦 Sound Triggers
 
 Spheres which cause the bird sounds to play in replays.
+
+*These are not used by the game*
 
 | Blender Addon     | Wallaby
 |-------------------|------------------
