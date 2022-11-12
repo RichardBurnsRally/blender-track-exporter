@@ -12,6 +12,13 @@ using an older version.
 
 ## Releases
 
+### v0.2.7 [⭳ (zip)](https://github.com/RichardBurnsRally/blender-track-exporter/raw/master/releases/rbr-track-exporter-v0.2.7.zip)
+
+**What's Changed**
+
+- Remap mat file when exporting. Previously the addon exported every material map it could find, even if they weren't used, which meant stages could easily exceed the limit for the material map count (256), which wasn't being checked. With this version, the limit is checked, and we only export material maps which are used in a collision mesh somewhere.
+- Fix `shading_type` warning. This was removed some time ago, but I'd missed a reference so it would print spurious warnings in blender.
+
 ### v0.2.6 [⭳ (zip)](https://github.com/RichardBurnsRally/blender-track-exporter/raw/master/releases/rbr-track-exporter-v0.2.6.zip)
 
 **What's Changed**

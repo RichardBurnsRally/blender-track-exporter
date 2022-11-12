@@ -875,3 +875,8 @@ collision meshes must be convex or they will not work in game. Try to apply the
 
 A wet surface object contains faces which are not quads. All faces of wet
 surfaces must be quads: no trianges or other n-gons.
+
+## E0158
+
+There are too many material maps being exported. The maximum number is 256, try
+to merge some of your materials together to reduce the count.
