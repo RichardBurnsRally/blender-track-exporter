@@ -880,3 +880,15 @@ surfaces must be quads: no trianges or other n-gons.
 
 There are too many material maps being exported. The maximum number is 256, try
 to merge some of your materials together to reduce the count.
+
+## E0159
+
+There are too many wet and water surfaces being exported. The maximum combined
+number is 512. Try to simplify your water surface meshes to fewer quads or
+remove some water surfaces the car is unlikely to hit. The native stages use
+water surfaces roughly the same area as the car.
+
+## E0160
+
+There are too many checkpoint/split events on the driveline. There should be two
+splits between the start and finish events.

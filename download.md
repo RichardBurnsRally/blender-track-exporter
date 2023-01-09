@@ -12,6 +12,17 @@ using an older version.
 
 ## Releases
 
+### v0.2.8 [⭳ (zip)](https://github.com/RichardBurnsRally/blender-track-exporter/raw/master/releases/rbr-track-exporter-v0.2.8.zip)
+
+**What's Changed**
+
+- Add new "Sett" material. This is like cobble, but a bit grippier. It can be found as a sub-type of cobble in the addon material menu.
+- Check that the number of wet/water surfaces is less than the maximum supported by the game. 512 is the combined limit, more surfaces will not work in game.
+- Tweak "car ambient lighting" minimum value in the blender UI. It can now go lower than 1.0.
+- Add missing "car deep shadow alpha" entry to the tracksettings ini exporter.
+- Make driveline events orange to stand out among pacenotes.
+- Check that there are a maximum of 2 split events on the driveline when exporting.
+
 ### v0.2.7 [⭳ (zip)](https://github.com/RichardBurnsRally/blender-track-exporter/raw/master/releases/rbr-track-exporter-v0.2.7.zip)
 
 **What's Changed**
