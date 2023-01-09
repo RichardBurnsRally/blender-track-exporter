@@ -9,6 +9,8 @@ Discord server](https://discord.gg/VMySc2fPCH).
 
 Note that since the addon is still in beta, things are subject to change.
 
+**Please note that your blender language must be set to English in order for the addon to work correctly. Eventually, when [this](https://github.com/RichardBurnsRally/blender-track-exporter/issues/13) bug is fixed, this restriction will be lifted. But for now, use English or you'll run into all sorts of problems.**
+
 ## Addon Setup
 
 After installing the addon, you should set up your RBR export directories. Find
