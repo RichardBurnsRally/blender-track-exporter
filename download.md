@@ -12,6 +12,14 @@ using an older version.
 
 ## Releases
 
+### v0.2.9 [⭳ (zip)](https://github.com/RichardBurnsRally/blender-track-exporter/raw/master/releases/rbr-track-exporter-v0.2.9.zip)
+
+**What's Changed**
+
+- Fix a bug in the material exporter that didn't account for non-"road-surface" textures using `new` material maps for all of `new/normal/worn` combinations. Typically this means that non-"road-surface" textures exported prior to this version would have the correct material maps for `new` but the incorrect ones for `normal/worn` (likely using the blank default `undefined` material). Thanks to NaroGugul for finding this bug.
+- Deduplicate material maps during export. This means it's _much_ less likely for you to run into the 256 material map limit, because the common case of using fallback maps will often be deduplicated (among others). The deduplication happens for each set of `dry/damp/wet/` and `new/normal/worn` combinations, for example if you have two separate textures which use pixel-for-pixel identical material maps for every combination of `dry/damp/wet` and `new/normal/worn` (all 9 of them for road surface textures, 3 for non road surface), they will be deduplicated. But if just one pixel differs, they will still be separate material maps. Note that the position and size of the material map does not matter, just the content of the pixels.
+- Remove some leftover debug logging from the fence exporter.
+
 ### v0.2.8 [⭳ (zip)](https://github.com/RichardBurnsRally/blender-track-exporter/raw/master/releases/rbr-track-exporter-v0.2.8.zip)
 
 **What's Changed**
