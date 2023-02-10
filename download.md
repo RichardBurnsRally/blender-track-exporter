@@ -12,6 +12,13 @@ using an older version.
 
 ## Releases
 
+### v0.2.10 [⭳ (zip)](https://github.com/RichardBurnsRally/blender-track-exporter/raw/master/releases/rbr-track-exporter-v0.2.10.zip)
+
+**What's Changed**
+
+- More lenient export for specular textures with respect to different DDS settings/sizes
+- Small internal fixes, e.g. removing mat check for ground material export
+
 ### v0.2.9 [⭳ (zip)](https://github.com/RichardBurnsRally/blender-track-exporter/raw/master/releases/rbr-track-exporter-v0.2.9.zip)
 
 **What's Changed**
