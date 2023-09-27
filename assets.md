@@ -16,3 +16,7 @@ structured" because all geometry is pre-merged, the ground collision mesh is
 separate to the ground visual mesh, etc - so take it with a grain of salt and
 ask questions in the [Discord](https://discord.gg/VMySc2fPCH) if you're confused
 about something.
+
+### East-West [⭳ (7z)](https://github.com/RichardBurnsRally/blender-track-exporter/raw/master/blender-assets/tracks/east-west-blender.7z)
+
+As above, but a native gravel stage.
