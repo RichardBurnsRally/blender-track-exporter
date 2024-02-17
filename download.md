@@ -12,6 +12,14 @@ using an older version.
 
 ## Releases
 
+### v0.2.11 [⭳ (zip)](https://github.com/RichardBurnsRally/blender-track-exporter/raw/master/releases/rbr-track-exporter-v0.2.11.zip)
+
+**What's Changed**
+
+- Add support for blender 4.0
+- Fix errors caused by numpy 1.23
+- Support baking for the new unified mix node (color + float only)
+
 ### v0.2.10 [⭳ (zip)](https://github.com/RichardBurnsRally/blender-track-exporter/raw/master/releases/rbr-track-exporter-v0.2.10.zip)
 
 **What's Changed**
