@@ -12,6 +12,13 @@ using an older version.
 
 ## Releases
 
+### v0.3.0 [⭳ (zip)](https://github.com/RichardBurnsRally/blender-track-exporter/raw/master/releases/rbr-track-exporter-v0.3.0.zip)
+
+**What's Changed**
+
+- Major version bump to reflect the requirement for blender 4.0
+- Fix 'key "Factor" not found' error when baking during export
+
 ### v0.2.11 [⭳ (zip)](https://github.com/RichardBurnsRally/blender-track-exporter/raw/master/releases/rbr-track-exporter-v0.2.11.zip)
 
 **What's Changed**
