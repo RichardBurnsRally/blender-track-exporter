@@ -12,6 +12,12 @@ using an older version.
 
 ## Releases
 
+### v0.3.2 [⭳ (zip)](https://github.com/RichardBurnsRally/blender-track-exporter/raw/master/releases/rbr-track-exporter-v0.3.2.zip)
+
+**What's Changed**
+
+- Add support for blender 4.5 (may work in 4.4, untested)
+
 ### v0.3.1 [⭳ (zip)](https://github.com/RichardBurnsRally/blender-track-exporter/raw/master/releases/rbr-track-exporter-v0.3.1.zip)
 
 **What's Changed**
