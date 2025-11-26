@@ -12,6 +12,14 @@ using an older version.
 
 ## Releases
 
+### v0.3.3 [⭳ (zip)](https://github.com/RichardBurnsRally/blender-track-exporter/raw/master/releases/rbr-track-exporter-v0.3.3.zip)
+
+**What's Changed**
+
+- Requires blender 4.5.5
+- Fixes material map editor issues
+- Fixes phantom file size increase (caused by above bug - if you're affected, the first load of your project may take some time - just wait for it to complete)
+
 ### v0.3.2 [⭳ (zip)](https://github.com/RichardBurnsRally/blender-track-exporter/raw/master/releases/rbr-track-exporter-v0.3.2.zip)
 
 **What's Changed**
