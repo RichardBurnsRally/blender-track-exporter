@@ -16,6 +16,7 @@ jobs:
           cache: pip
           cache-dependency-path: requirements-dev.txt
       - run: pip install -r requirements-dev.txt
+      - run: python scripts/patch-bpy-stubs.py "$(python -c 'import site; print(site.getsitepackages()[0])')"
       - run: scripts/check.sh
       - name: System libraries for headless blender
         run: |
