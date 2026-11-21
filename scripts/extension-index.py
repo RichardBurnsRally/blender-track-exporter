@@ -26,7 +26,9 @@ def version_tuple(version: str) -> tuple[int, ...]:
 
 def blender_range(entry: dict) -> tuple[tuple[int, ...], tuple[int, ...] | None]:
     high = entry.get("blender_version_max")
-    return version_tuple(entry["blender_version_min"]), version_tuple(high) if high else None
+    return version_tuple(entry["blender_version_min"]), (
+        version_tuple(high) if high else None
+    )
 
 
 def ranges_overlap(a: dict, b: dict) -> bool:
@@ -52,9 +54,15 @@ def entry_from_zip(path: str, base_url: str) -> dict:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--index", required=True, help="index.json to update (created if missing)")
-    parser.add_argument("--base-url", required=True, help="URL the zips are downloaded from")
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument(
+        "--index", required=True, help="index.json to update (created if missing)"
+    )
+    parser.add_argument(
+        "--base-url", required=True, help="URL the zips are downloaded from"
+    )
     parser.add_argument("zips", nargs="+")
     args = parser.parse_args()
 
@@ -68,16 +76,31 @@ def main() -> int:
     for path in args.zips:
         new = entry_from_zip(path, args.base_url)
         replaced = [
-            old for old in data
-            if old["id"] == new["id"] and platforms_overlap(old, new) and ranges_overlap(old, new)
+            old
+            for old in data
+            if old["id"] == new["id"]
+            and platforms_overlap(old, new)
+            and ranges_overlap(old, new)
         ]
         for old in replaced:
-            print(f"replacing {old['id']} {old['version']} {old.get('platforms', [])}", file=sys.stderr)
+            print(
+                f"replacing {old['id']} {old['version']} {old.get('platforms', [])}",
+                file=sys.stderr,
+            )
         data[:] = [entry for entry in data if not any(entry is old for old in replaced)]
         data.append(new)
-        print(f"added {new['id']} {new['version']} {new.get('platforms', [])}", file=sys.stderr)
+        print(
+            f"added {new['id']} {new['version']} {new.get('platforms', [])}",
+            file=sys.stderr,
+        )
 
-    data.sort(key=lambda entry: (entry["id"], entry.get("platforms", []), blender_range(entry)[0]))
+    data.sort(
+        key=lambda entry: (
+            entry["id"],
+            entry.get("platforms", []),
+            blender_range(entry)[0],
+        )
+    )
     with open(args.index, "w", encoding="utf-8", newline="\n") as f:
         json.dump(index, f, indent=2)
         f.write("\n")
