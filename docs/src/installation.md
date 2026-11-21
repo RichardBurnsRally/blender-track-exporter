@@ -9,30 +9,43 @@
 | ----------------- | --------------- |
 | 1.0.x             | 5.2.x           |
 
-Releases are built for Windows x64, macOS arm64 and Linux x64, with one zip per
-platform.
+Releases are built for Windows x64, macOS arm64 and Linux x64.
 
 ## Installing the extension
 
-Download the zip for your platform and install it as a Blender extension:
+The extension is installed from its own Blender extension repository, which
+also keeps it up to date:
 
-- Drag the zip into a Blender window, **or**
-- **Edit ▸ Preferences ▸ Get Extensions ▸ Install from Disk…** and pick the zip.
+1. Open **Edit ▸ Preferences ▸ Get Extensions**.
+2. Open the **Repositories** menu (top right), click **+** and choose **Add
+   Remote Repository**.
+3. Enter this URL, tick **Check for Updates on Startup**, and click **Create**:
 
-Enable it if it is not enabled automatically.
+   ```
+   https://richardburnsrally.github.io/blender-track-exporter/index.json
+   ```
 
-### Updating from the extension repository
+4. Search for **RBR Track Exporter** in the extension list and click
+   **Install**. Blender picks the build for your platform.
 
-Instead of installing zips by hand, you can add the extension repository and
-let Blender install and update the extension for you. In **Edit ▸ Preferences ▸
-Get Extensions**, add a remote repository with this URL:
+New versions then show up in **Get Extensions** like any other extension
+update.
+
+### Pre-releases
+
+To test pre-releases as well, add this repository instead:
 
 ```
-https://richardburnsrally.github.io/blender-track-exporter/index.json
+https://richardburnsrally.github.io/blender-track-exporter/beta/index.json
 ```
 
-Then find **RBR Track Exporter** in the extension list and install it. Updates
-show up there like any other extension.
+### Installing a zip by hand
+
+Every release's zips are also on the
+[releases page](https://github.com/RichardBurnsRally/blender-track-exporter/releases).
+Download the one for your platform and drag it into a Blender window, or use
+**Edit ▸ Preferences ▸ Get Extensions ▸ Install from Disk…**. A zip installed
+this way doesn't update itself.
 
 ## Setting up export directories
 
