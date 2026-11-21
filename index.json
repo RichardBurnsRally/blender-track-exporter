@@ -5,7 +5,7 @@
     {
       "schema_version": "1.0.0",
       "id": "rbr_track_exporter",
-      "version": "1.0.0-test.1",
+      "version": "1.0.0-rc.1",
       "name": "RBR Track Exporter",
       "tagline": "Exporter for RBR's native track format",
       "maintainer": "Tom Smalley",
@@ -25,14 +25,14 @@
       "platforms": [
         "linux-x64"
       ],
-      "archive_url": "https://github.com/RichardBurnsRally/blender-track-exporter/releases/download/v1.0.0-test.1/rbr_track_exporter-1.0.0-test.1-linux_x64.zip",
-      "archive_size": 2279648,
-      "archive_hash": "sha256:bd529fc545c4b1e60070adcf7a881f4d992e35df483c28591b24f4f52a32aaea"
+      "archive_url": "https://github.com/RichardBurnsRally/blender-track-exporter/releases/download/v1.0.0-rc.1/rbr_track_exporter-1.0.0-rc.1-linux_x64.zip",
+      "archive_size": 2279646,
+      "archive_hash": "sha256:80f6d44c7d193b3a2d6e5c1e5c25238680707dd4932652f6bf8b58da4bd3efab"
     },
     {
       "schema_version": "1.0.0",
       "id": "rbr_track_exporter",
-      "version": "1.0.0-test.1",
+      "version": "1.0.0-rc.1",
       "name": "RBR Track Exporter",
       "tagline": "Exporter for RBR's native track format",
       "maintainer": "Tom Smalley",
@@ -52,14 +52,14 @@
       "platforms": [
         "macos-arm64"
       ],
-      "archive_url": "https://github.com/RichardBurnsRally/blender-track-exporter/releases/download/v1.0.0-test.1/rbr_track_exporter-1.0.0-test.1-macos_arm64.zip",
-      "archive_size": 5658086,
-      "archive_hash": "sha256:cbebf2ec89e0e6292b3179c423d662460dec7fb1e5d658dab52c37227d682082"
+      "archive_url": "https://github.com/RichardBurnsRally/blender-track-exporter/releases/download/v1.0.0-rc.1/rbr_track_exporter-1.0.0-rc.1-macos_arm64.zip",
+      "archive_size": 5658084,
+      "archive_hash": "sha256:8fb7df7b4c6ef18c02945814e81b3d158423905dcda9f415e36146059ab641db"
     },
     {
       "schema_version": "1.0.0",
       "id": "rbr_track_exporter",
-      "version": "1.0.0-test.1",
+      "version": "1.0.0-rc.1",
       "name": "RBR Track Exporter",
       "tagline": "Exporter for RBR's native track format",
       "maintainer": "Tom Smalley",
@@ -79,9 +79,9 @@
       "platforms": [
         "windows-x64"
       ],
-      "archive_url": "https://github.com/RichardBurnsRally/blender-track-exporter/releases/download/v1.0.0-test.1/rbr_track_exporter-1.0.0-test.1-windows_x64.zip",
-      "archive_size": 2427389,
-      "archive_hash": "sha256:f20b6647997d416440a8d264634a5ab4ad283251df136ae80fec72c91b418253"
+      "archive_url": "https://github.com/RichardBurnsRally/blender-track-exporter/releases/download/v1.0.0-rc.1/rbr_track_exporter-1.0.0-rc.1-windows_x64.zip",
+      "archive_size": 2427387,
+      "archive_hash": "sha256:5813ac597514c447c44460f17535e955adf4822439e5642d3be60b92b46b574a"
     }
   ]
 }
