@@ -1,0 +1,13 @@
+# Lint/type tooling (scripts/check.sh); numpy is imported by the addon and
+# ships its own type annotations.
+black
+mypy
+numpy
+# Headless blender for scripts/smoke.sh; keep in the blender_manifest.toml
+# version range.
+bpy~=5.2.0
+# Type stubs for bpy/mathutils/etc. Stub-only (bpy-stubs, ...), so they sit
+# alongside the real bpy without colliding; scripts/ensure-venv.sh patches
+# their broken collection MRO. The smoke test still uses the real bpy.
+# Pinned: later builds type most getters as Optional and break strict mypy.
+fake-bpy-module==20260501

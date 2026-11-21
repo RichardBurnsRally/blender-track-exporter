@@ -1,0 +1,17 @@
+[book]
+title = "RBR Track Exporter"
+description = "Authoring and exporting Richard Burns Rally tracks with the Blender addon"
+authors = ["Tom Smalley"]
+language = "en"
+src = "src"
+
+[output.html]
+git-repository-url = "https://github.com/RichardBurnsRally/blender-track-exporter"
+edit-url-template = "https://github.com/RichardBurnsRally/blender-track-exporter/edit/main/docs/{path}"
+
+[output.html.redirect]
+"/download.html" = "legacy/download.html"
+"/assets.html" = "legacy/assets.html"
+"/guide.html" = "legacy/guide.html"
+"/features.html" = "legacy/features.html"
+"/errors.html" = "legacy/errors.html"

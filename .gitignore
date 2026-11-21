@@ -1,0 +1,5 @@
+__pycache__
+.mypy_cache
+rbr_track_exporter/native/
+.venv/
+docs/book/

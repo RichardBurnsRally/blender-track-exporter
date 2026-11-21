@@ -1,0 +1,25 @@
+schema_version = "1.0.0"
+
+id = "rbr_track_exporter"
+version = "1.0.0-rc.1"
+name = "RBR Track Exporter"
+tagline = "Exporter for RBR's native track format"
+maintainer = "Tom Smalley"
+type = "add-on"
+
+permissions = ["files"]
+website = "https://richardburnsrally.github.io/blender-track-exporter/"
+
+tags = ["Import-Export"]
+
+# The compiled rbr_blender_track_io module only loads in the Blender
+# major.minor it was built against, so this range is exactly one minor
+# version wide.
+blender_version_min = "5.2.0"
+blender_version_max = "5.3.0"
+
+license = [
+  "SPDX:GPL-3.0-or-later",
+]
+
+platforms = ["windows-x64", "macos-arm64", "linux-x64"]

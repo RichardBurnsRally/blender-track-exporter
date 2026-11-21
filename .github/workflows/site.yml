@@ -1,0 +1,66 @@
+name: Site
+
+# The Pages site is the book plus the Blender extension repository indexes, rebuilt from the releases:
+# index.json lists stable releases, beta/index.json pre-releases too.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  release:
+    types: [published, edited, deleted]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      # Release events run on the tag; the book still comes from main.
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event_name == 'release' && github.event.repository.default_branch || '' }}
+      - uses: peaceiris/actions-mdbook@v2
+        with:
+          mdbook-version: 0.5.3
+      - run: mdbook build docs
+      - name: extension repository indexes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p docs/book/beta
+          for index in docs/book/index.json docs/book/beta/index.json; do
+            echo '{"version": "v1", "blocklist": [], "data": []}' > "$index"
+          done
+          gh api "repos/$GITHUB_REPOSITORY/releases" --paginate \
+            --jq '.[] | select(.draft | not) | [.published_at, .tag_name, .prerelease] | @tsv' \
+            | sort | while IFS=$'\t' read -r _ tag prerelease; do
+              rm -rf zips && mkdir zips
+              gh release download "$tag" -R "$GITHUB_REPOSITORY" -p '*.zip' -D zips || continue
+              base="https://github.com/$GITHUB_REPOSITORY/releases/download/$tag"
+              python3 scripts/extension-index.py --index docs/book/beta/index.json --base-url "$base" zips/*.zip
+              if [ "$prerelease" = false ]; then
+                python3 scripts/extension-index.py --index docs/book/index.json --base-url "$base" zips/*.zip
+              fi
+            done
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/book
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

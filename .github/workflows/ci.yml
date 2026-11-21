@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version-file: .python-version
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - run: pip install -r requirements-dev.txt
+      - run: scripts/check.sh
+      - name: System libraries for headless blender
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgl1 libglu1-mesa libxi6 libxrender1 libxkbcommon0 libsm6 libxfixes3
+      - run: scripts/smoke.sh

@@ -1,0 +1,22 @@
+# Tool configuration only; the addon is never installed as a package.
+
+[tool.black]
+target-version = ["py313"]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+disallow_subclassing_any = false
+
+# The compiled module (loaded from native/ at runtime) has no stubs.
+[[tool.mypy.overrides]]
+module = ["rbr_track_exporter.rbr_blender_track_io"]
+ignore_missing_imports = true
+
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
+# bpy/mathutils/gpu/... ship as stub-only (runtime lives in bpy's binary).
+reportMissingModuleSource = false
+reportMissingImports = false
+reportAttributeAccessIssue = false
