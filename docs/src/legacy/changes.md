@@ -50,9 +50,11 @@ depends on where it is set:
 ## Materials and textures
 
 - Shader inputs only read **Attribute**, **RGB**, **Value** and **RBR Tint
-  Set** nodes, and textures only come from **RBR Texture** nodes. Colour ramps,
-  mixes and maths feeding an input have to be baked to an attribute first (the
-  optional migration can move them into a geometry nodes modifier).
+  Set** nodes, and textures only come from **RBR Texture** nodes. Anything more
+  involved, like colour ramps, mixes or maths, belongs in geometry nodes:
+  compute it there, store it as an attribute, and read that attribute in the
+  material. The optional migration moves existing shader node maths into a
+  geometry nodes modifier for you.
 - **Vertex Color** nodes are replaced by **Attribute** nodes.
 - **RBR Tint Set** nodes route a different input per tint set.
 - Each RBR Texture has an explicit **format** (DXT1, DXT1 with 1-bit alpha,
