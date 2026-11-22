@@ -41,8 +41,11 @@ depends on where it is set:
   splashes) are set on the **mesh**. See [Mesh Types](../objects-mesh.md).
 - **Tint set visibility** stays per object, in
   [Object Settings](../object-settings.md).
-- The **Exported** toggle is gone: exclude a collection from the view layer to
-  keep objects out of the export.
+- What gets exported is decided by the **view layer**: every object in it is
+  exported, including objects hidden in the viewport. To leave objects out, put
+  them in a collection excluded from the view layer. The old per-object
+  **Exported** toggle is gone, and hiding an object no longer keeps it out. See
+  [Exporting](../exporting.md).
 - The instancer type is gone: instances (collection instances, geometry nodes
   instances) export as they are. The **Export real instances** option is only
   needed when each copy's modifiers must be evaluated at its own position. See
