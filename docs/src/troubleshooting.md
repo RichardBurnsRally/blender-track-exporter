@@ -41,6 +41,13 @@ A stage needs at least one **surface type** (Dry/Damp/Wet) and at least one
 **tint set** (Morning/Noon/Evening/Overcast). Tick them in
 [Scene Settings](./scene-settings.md).
 
+## "texture … has no wet image, but the stage has that surface type"
+
+Every texture needs an image for each surface type ticked in
+[Scene Settings](./scene-settings.md), or the game won't find that texture in
+that surface's folder. Add the image, or untick the surface type. Images for surface types
+that aren't ticked are left out of the export.
+
 ## "No collision geometry"
 
 No exported mesh has a material whose RBR Shader has **Generate Collision

@@ -65,7 +65,11 @@ unlink it. Below that:
   `.dds` and the texture is re-encoded again.
 - **Road Surface (diffuse only)** — off, the texture has a **Dry**, **Damp** and
   **Wet** image. On, it has one per surface type and age (**Dry/New** …
-  **Wet/Worn**), for textures that should change as the track wears.
+  **Wet/Worn**), for textures that should change as the track wears. Only the
+  surface types ticked in [Scene Settings](./scene-settings.md) are exported,
+  and each of them needs an image. A road texture missing some ages of a
+  surface type gets a warning, and the game uses another age of that surface
+  instead.
 - A **Suggested size** warning appears when an image isn't a power of two.
 - **Mirror** / **Clamp** **U** / **V** — texture addressing instead of repeat.
   Only shown when the texture feeds an Object Block, Super Bowl or Interactive
