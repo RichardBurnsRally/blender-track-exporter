@@ -483,9 +483,23 @@ def dds_format(path: str) -> Optional[str]:
     return "DXT1"
 
 
-def _pass_through_dds(node_tree: bpy.types.NodeTree) -> bool:
+def dds_mip_levels(path: str) -> Optional[int]:
+    try:
+        with open(path, "rb") as f:
+            header = f.read(128)
+    except OSError:
+        return None
+    if len(header) < 128 or header[:4] != b"DDS ":
+        return None
+    flags = struct.unpack_from("<I", header, 8)[0]
+    mip_levels = struct.unpack_from("<I", header, 28)[0]
+    return max(1, mip_levels) if flags & 0x20000 else 1
+
+
+def _pass_through_dds(node_tree: bpy.types.NodeTree, override_mips: bool) -> bool:
     """The old addon exported its .dds files as they are; keep doing that,
-    with the format their headers declare."""
+    with the format their headers declare, and the mipmap count it wrote: its
+    override, or else the header's."""
     internal = node_tree.nodes.get("internal")
     if not isinstance(internal, texture.ShaderNodeRBRTextureInternal):
         return False
@@ -500,6 +514,9 @@ def _pass_through_dds(node_tree: bpy.types.NodeTree) -> bool:
         return False
     internal.texture_format = fmt
     internal.passthrough_dds = True
+    if not override_mips:
+        mips = dds_mip_levels(bpy.path.abspath(image.filepath, library=image.library))
+        internal.mip_levels = mips or 0
     return True
 
 
@@ -517,10 +534,11 @@ def migrate_textures(context: bpy.types.Context, log: Log) -> None:
         internal = node_tree.nodes.get("internal")
         if internal is None:
             continue
-        if not internal.get("override_mip_levels", 0):
+        override_mips = bool(internal.get("override_mip_levels", 0))
+        if not override_mips:
             internal["mip_levels"] = 0
         texture.recreate_internals(context, node_tree)
-        passthrough += _pass_through_dds(node_tree)
+        passthrough += _pass_through_dds(node_tree, override_mips)
         count += 1
     push_links(links)
     log.info(
