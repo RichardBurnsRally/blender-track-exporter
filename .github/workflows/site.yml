@@ -20,13 +20,23 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # A deploy from a release event's tag reports success but doesn't update the site, so a release rebuilds it
+  # from the default branch instead.
+  release:
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - run: gh workflow run site.yml -R "$GITHUB_REPOSITORY" --ref "${{ github.event.repository.default_branch }}"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
   build:
+    if: github.event_name != 'release'
     runs-on: ubuntu-latest
     steps:
-      # Release events run on the tag; the book still comes from main.
       - uses: actions/checkout@v6
-        with:
-          ref: ${{ github.event_name == 'release' && github.event.repository.default_branch || '' }}
       - uses: peaceiris/actions-mdbook@v2
         with:
           mdbook-version: 0.5.3
@@ -34,25 +44,10 @@ jobs:
       - name: extension repository index
         env:
           GH_TOKEN: ${{ github.token }}
-          # A just-published release can take a few seconds to show up as published in the releases list.
-          WAIT_FOR: ${{ github.event_name == 'release' && github.event.action != 'deleted' && github.event.release.tag_name || '' }}
         run: |
           set -o pipefail
-          list() {
-            gh api "repos/$GITHUB_REPOSITORY/releases" --paginate \
-              --jq '.[] | select(.draft | not) | [.published_at, .tag_name] | @tsv' | sort > releases.tsv
-          }
-          list
-          for _ in $(seq 12); do
-            [ -z "$WAIT_FOR" ] || cut -f2 releases.tsv | grep -qxF "$WAIT_FOR" && break
-            echo "waiting for $WAIT_FOR to be listed"
-            sleep 5
-            list
-          done
-          if [ -n "$WAIT_FOR" ] && ! cut -f2 releases.tsv | grep -qxF "$WAIT_FOR"; then
-            echo "error: $WAIT_FOR is not listed as published" >&2
-            exit 1
-          fi
+          gh api "repos/$GITHUB_REPOSITORY/releases" --paginate \
+            --jq '.[] | select(.draft | not) | [.published_at, .tag_name] | @tsv' | sort > releases.tsv
           echo '{"version": "v1", "blocklist": [], "data": []}' > docs/book/index.json
           while IFS=$'\t' read -r _ tag; do
             rm -rf zips && mkdir zips
@@ -65,7 +60,7 @@ jobs:
           path: docs/book
 
   deploy:
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && github.event_name != 'release'
     needs: build
     runs-on: ubuntu-latest
     environment:
