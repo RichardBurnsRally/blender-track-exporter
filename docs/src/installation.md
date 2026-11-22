@@ -29,15 +29,7 @@ also keeps it up to date:
    **Install**. Blender picks the build for your platform.
 
 New versions then show up in **Get Extensions** like any other extension
-update.
-
-### Pre-releases
-
-To test pre-releases as well, add this repository instead:
-
-```
-https://richardburnsrally.github.io/blender-track-exporter/beta/index.json
-```
+update. Pre-releases are published here too.
 
 ### Installing a zip by hand
 

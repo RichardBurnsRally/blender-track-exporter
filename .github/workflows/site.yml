@@ -1,7 +1,7 @@
 name: Site
 
-# The Pages site is the book plus the Blender extension repository indexes, rebuilt from the releases:
-# index.json lists stable releases, beta/index.json pre-releases too.
+# The Pages site is the book plus the Blender extension repository index, rebuilt from the releases
+# (pre-releases included).
 on:
   push:
     branches: [main]
@@ -31,24 +31,18 @@ jobs:
         with:
           mdbook-version: 0.5.3
       - run: mdbook build docs
-      - name: extension repository indexes
+      - name: extension repository index
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          mkdir -p docs/book/beta
-          for index in docs/book/index.json docs/book/beta/index.json; do
-            echo '{"version": "v1", "blocklist": [], "data": []}' > "$index"
-          done
+          echo '{"version": "v1", "blocklist": [], "data": []}' > docs/book/index.json
           gh api "repos/$GITHUB_REPOSITORY/releases" --paginate \
-            --jq '.[] | select(.draft | not) | [.published_at, .tag_name, .prerelease] | @tsv' \
-            | sort | while IFS=$'\t' read -r _ tag prerelease; do
+            --jq '.[] | select(.draft | not) | [.published_at, .tag_name] | @tsv' \
+            | sort | while IFS=$'\t' read -r _ tag; do
               rm -rf zips && mkdir zips
               gh release download "$tag" -R "$GITHUB_REPOSITORY" -p '*.zip' -D zips || continue
               base="https://github.com/$GITHUB_REPOSITORY/releases/download/$tag"
-              python3 scripts/extension-index.py --index docs/book/beta/index.json --base-url "$base" zips/*.zip
-              if [ "$prerelease" = false ]; then
-                python3 scripts/extension-index.py --index docs/book/index.json --base-url "$base" zips/*.zip
-              fi
+              python3 scripts/extension-index.py --index docs/book/index.json --base-url "$base" zips/*.zip
             done
       - uses: actions/upload-pages-artifact@v3
         with:
