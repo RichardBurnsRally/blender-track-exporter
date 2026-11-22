@@ -1,7 +1,6 @@
 """The on-demand migration steps. Each reads the old addon's leftover ID
 properties, so it can run at any time after the automatic pass."""
 
-import struct
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 
 import bmesh
@@ -124,26 +123,6 @@ def duplicate_shared(log: Log) -> int:
 
 
 # ---------------------------------------------------------------- textures
-DDS_FORMATS = {b"DXT1": "DXT1", b"DXT3": "DXT3", b"DXT5": "DXT5"}
-
-
-def dds_format(path: str) -> Optional[str]:
-    try:
-        with open(path, "rb") as f:
-            header = f.read(128)
-    except OSError:
-        return None
-    if len(header) < 128 or header[:4] != b"DDS ":
-        return None
-    fourcc = header[84:88]
-    if fourcc in DDS_FORMATS:
-        return DDS_FORMATS[fourcc]
-    flags = struct.unpack_from("<I", header, 80)[0]
-    if flags & 0x1:
-        return "DXT5"
-    return "DXT1"
-
-
 def texture_formats(log: Log) -> int:
     count = 0
     transparent = legacy.transparent_texture_trees()
@@ -153,7 +132,7 @@ def texture_formats(log: Log) -> int:
         ):
             continue
         internal = node_tree.nodes.get("internal")
-        if internal is None:
+        if internal is None or internal.passthrough_dds:
             continue
         image = None
         for name in ("dry/new", "damp/new", "wet/new"):
@@ -167,7 +146,7 @@ def texture_formats(log: Log) -> int:
         if image is None:
             continue
         path = bpy.path.abspath(image.filepath, library=image.library)
-        fmt = dds_format(path)
+        fmt = legacy.dds_format(path)
         if fmt == "DXT1" and node_tree.name in transparent:
             fmt = "DXT1_1BIT"
         if fmt is None:

@@ -9,6 +9,7 @@ run later.
 import ast
 import math
 import re
+import struct
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 import bpy
@@ -18,6 +19,7 @@ from ..blender_utils import gnodes_input, narrow
 from ..gnodes.fence import GNODES_FENCE_SUBDIVIDE, GNODES_FENCE_VCOL
 from ..properties.fence import recreate_fence_node_group
 from ..shaders import sky, texture
+from ..shaders.texture import all_images_dds, used_image_nodes
 from ..shaders.refresh import pop_links, push_links, refresh_all_rbr_shaders
 from ..shaders.shader_node import ShaderNodeRBR
 from ..shaders.uv_velocity import setup_uv_velocity_node_tree
@@ -461,10 +463,51 @@ def migrate_suns(log: Log) -> None:
 
 
 # ---------------------------------------------------------------- textures
+DDS_FORMATS = {b"DXT1": "DXT1", b"DXT3": "DXT3", b"DXT5": "DXT5"}
+
+
+def dds_format(path: str) -> Optional[str]:
+    try:
+        with open(path, "rb") as f:
+            header = f.read(128)
+    except OSError:
+        return None
+    if len(header) < 128 or header[:4] != b"DDS ":
+        return None
+    fourcc = header[84:88]
+    if fourcc in DDS_FORMATS:
+        return DDS_FORMATS[fourcc]
+    flags = struct.unpack_from("<I", header, 80)[0]
+    if flags & 0x1:
+        return "DXT5"
+    return "DXT1"
+
+
+def _pass_through_dds(node_tree: bpy.types.NodeTree) -> bool:
+    """The old addon exported its .dds files as they are; keep doing that,
+    with the format their headers declare."""
+    internal = node_tree.nodes.get("internal")
+    if not isinstance(internal, texture.ShaderNodeRBRTextureInternal):
+        return False
+    if not all_images_dds(internal):
+        return False
+    _, node = used_image_nodes(node_tree, internal.is_road_surface)[0]
+    image = node.image
+    if image is None:
+        return False
+    fmt = dds_format(bpy.path.abspath(image.filepath, library=image.library))
+    if fmt is None:
+        return False
+    internal.texture_format = fmt
+    internal.passthrough_dds = True
+    return True
+
+
 def migrate_textures(context: bpy.types.Context, log: Log) -> None:
     """Old texture trees keep their settings node; the rest is rebuilt now
     because the scene settings link into it as soon as they change."""
     count = 0
+    passthrough = 0
     links = pop_links()
     for node_tree in bpy.data.node_groups:
         if node_tree.library is not None or not node_tree.name.startswith(
@@ -477,11 +520,16 @@ def migrate_textures(context: bpy.types.Context, log: Log) -> None:
         if not internal.get("override_mip_levels", 0):
             internal["mip_levels"] = 0
         texture.recreate_internals(context, node_tree)
+        passthrough += _pass_through_dds(node_tree)
         count += 1
     push_links(links)
     log.info(
-        f"{count} RBR textures carried over (format defaults to DXT1; run the optional texture format step to read the .dds headers)"
+        f"{count} RBR textures carried over, {passthrough} passing their .dds files through"
     )
+    if passthrough < count:
+        log.info(
+            "the rest default to DXT1; run the optional texture format step to read their .dds headers"
+        )
 
 
 def transparent_texture_trees() -> Set[str]:
