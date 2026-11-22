@@ -181,7 +181,9 @@ def draw_track_objects(
         scene_settings, "car_location", text="", placeholder="Empty"
     )
     # TODO checks
-    ui_split(ui, "Brake Wall").prop(scene_settings, "brake_wall", text="")
+    ui_split(ui, "Brake Wall").prop(
+        scene_settings, "brake_wall", text="", placeholder="Curve"
+    )
     ui_split(ui, "Registration Zone").prop(
         scene_settings, "registration_zone", text="", placeholder="Empty"
     )
