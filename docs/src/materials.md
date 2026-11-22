@@ -55,6 +55,14 @@ unlink it. Below that:
   default), **DXT1 (1-bit alpha)**, **DXT3 (sharp alpha)** or **DXT5 (smooth
   alpha)**. The viewport previews alpha the way the chosen format will store it.
 - **Mipmap Levels** — 0 generates a full chain down to 1×1.
+- **Pass through DDS** — only shown when every image of the texture is a
+  `.dds` file. Ticked, the files go into the export exactly as they are instead
+  of being re-encoded, with the mipmaps they contain (so **Mipmap Levels** is
+  hidden). **Format** still sets how alpha is drawn, and must match the files:
+  a DXT1 Format for DXT1 files, DXT3 for DXT3, DXT5 for DXT5. The export reports
+  an error if it doesn't, if the files differ in format, size or mipmap count,
+  or if an image has unsaved changes in Blender. Swap in an image that isn't a
+  `.dds` and the texture is re-encoded again.
 - **Road Surface (diffuse only)** — off, the texture has a **Dry**, **Damp** and
   **Wet** image. On, it has one per surface type and age (**Dry/New** …
   **Wet/Worn**), for textures that should change as the track wears.
