@@ -489,7 +489,7 @@ class ShaderNodeRBRTextureInternal(bpy.types.ShaderNodeCustomGroup):
 
     mip_levels: bpy.props.IntProperty(  # type: ignore
         name="Mipmap Levels",  # noqa: F821
-        description="Number of mipmap levels to generate. 0 generates a full chain down to 1x1",
+        description="Number of mipmap levels. 0 is a full chain down to 1x1. With Pass through DDS, the game generates levels the .dds files lack and drops extra ones when the track loads",
         get=_get_mip_levels,
         set=_set_mip_levels,
         min=0,
@@ -711,10 +711,7 @@ class ShaderNodeRBRTexture(bpy.types.ShaderNodeCustomGroup):
             if all_images_dds(internal):
                 texture_ui.prop(internal, "passthrough_dds")
             texture_ui.prop(internal, "texture_format")
-            if passes_through_dds(internal):
-                texture_ui.label(text="Mipmaps come from the .dds files")
-            else:
-                texture_ui.prop(internal, "mip_levels", slider=True)
+            texture_ui.prop(internal, "mip_levels", slider=True)
             texture_ui.prop(internal, "is_road_surface")
         if is_road_surface:
             self.__make_texture_layout__(texture_ui, "dry/new", "Dry/New")
