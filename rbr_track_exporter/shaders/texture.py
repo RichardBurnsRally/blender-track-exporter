@@ -124,6 +124,7 @@ def recreate_internals(
         internal.is_road_surface = old_internal.is_road_surface
         internal.texture_format = old_internal.texture_format
         internal.mip_levels = old_internal.mip_levels
+        internal.passthrough_dds = old_internal.passthrough_dds
         set_format_alpha_mode(node_tree, old_internal.texture_format)
         for original in old_internal.material_maps:
             new = internal.material_maps.add()
@@ -181,6 +182,7 @@ def setup_texture_node_tree(
     mip_levels: int = 0,
     texture_format: str = "DXT1",
     images: Dict[Tuple[str, str], bpy.types.Image] = dict(),
+    passthrough_dds: bool = False,
 ) -> bpy.types.NodeTree:
     node_tree = bpy.data.node_groups.new(
         RBR_TEXTURE_NODE_TREE_PREFIX + name, "ShaderNodeTree"
@@ -194,6 +196,7 @@ def setup_texture_node_tree(
     internal.is_road_surface = is_road_surface
     internal.texture_format = texture_format
     internal.mip_levels = mip_levels
+    internal.passthrough_dds = passthrough_dds
     set_format_alpha_mode(node_tree, texture_format)
     link_context_active_texture(context, node_tree)
     return node_tree
@@ -400,6 +403,37 @@ def compute_max_mip_levels(internal: bpy.types.Node) -> int:
     return int(math.floor(math.log2(max_dim))) + 1
 
 
+def used_image_nodes(
+    node_tree: bpy.types.NodeTree, is_road_surface: bool
+) -> List[Tuple[str, bpy.types.ShaderNodeTexImage]]:
+    """The texture's image nodes that hold an image and are exported, with the
+    subdirectory each is exported to."""
+    ages = ["new", "normal", "worn"] if is_road_surface else ["new"]
+    used = []
+    for surface in ["dry", "damp", "wet"]:
+        for age in ages:
+            node = node_tree.nodes.get(f"{surface}/{age}")
+            if isinstance(node, bpy.types.ShaderNodeTexImage) and node.image:
+                subdir = f"{surface}/{age}" if is_road_surface else surface
+                used.append((subdir, node))
+    return used
+
+
+def all_images_dds(internal: "ShaderNodeRBRTextureInternal") -> bool:
+    """Whether every exported image is a .dds file, going by its file name
+    (cheap enough for drawing; the export checks the headers)."""
+    node_tree = narrow(internal.id_data, bpy.types.NodeTree)
+    used = used_image_nodes(node_tree, internal.is_road_surface)
+    return bool(used) and all(
+        node.image is not None and node.image.filepath.lower().endswith(".dds")
+        for _, node in used
+    )
+
+
+def passes_through_dds(internal: "ShaderNodeRBRTextureInternal") -> bool:
+    return bool(internal.passthrough_dds) and all_images_dds(internal)
+
+
 def _get_mip_levels(self: bpy.types.Node) -> int:
     return int(self.get("mip_levels", 0))
 
@@ -460,6 +494,13 @@ class ShaderNodeRBRTextureInternal(bpy.types.ShaderNodeCustomGroup):
         set=_set_mip_levels,
         min=0,
         soft_max=15,
+        options=set(),  # No animation
+    )
+
+    passthrough_dds: bpy.props.BoolProperty(  # type: ignore
+        name="Pass through DDS",
+        description="Copy the .dds files into the export as they are, instead of re-encoding them",
+        default=False,
         options=set(),  # No animation
     )
 
@@ -667,8 +708,13 @@ class ShaderNodeRBRTexture(bpy.types.ShaderNodeCustomGroup):
         internal = self.node_tree.nodes.get("internal")
         if isinstance(internal, ShaderNodeRBRTextureInternal):
             is_road_surface = internal.is_road_surface
+            if all_images_dds(internal):
+                texture_ui.prop(internal, "passthrough_dds")
             texture_ui.prop(internal, "texture_format")
-            texture_ui.prop(internal, "mip_levels", slider=True)
+            if passes_through_dds(internal):
+                texture_ui.label(text="Mipmaps come from the .dds files")
+            else:
+                texture_ui.prop(internal, "mip_levels", slider=True)
             texture_ui.prop(internal, "is_road_surface")
         if is_road_surface:
             self.__make_texture_layout__(texture_ui, "dry/new", "Dry/New")

@@ -59,6 +59,8 @@ from .shaders.texture import (  # noqa: F401
     get_texture_address,
     set_texture_address,
     setup_texture_node_tree as _setup_texture_node_tree,
+    passes_through_dds,
+    used_image_nodes,
 )
 from .shaders.tint_set import ShaderNodeRBRTintSet
 from .shaders.uv_velocity import ShaderNodeUVVelocity
@@ -78,6 +80,7 @@ from .rbr_blender_track_io import (
     Attribute,
     AttributeOutput,
     TextureFormatChoice,
+    TextureExport,
     Texture,
     ShadowImage,
     ClippingPlaneMaterial,
@@ -123,6 +126,7 @@ def setup_texture_node_tree(
     mip_levels: int,
     texture_format: TextureFormatChoice,
     images: Dict[Tuple[str, str], bpy.types.Image],
+    passthrough_dds: bool,
 ) -> bpy.types.NodeTree:
     return _setup_texture_node_tree(
         context,
@@ -131,7 +135,25 @@ def setup_texture_node_tree(
         mip_levels,
         _choice_to_texture_format_id(texture_format),
         images,
+        passthrough_dds,
     )
+
+
+def make_dds_image(name: str, data: bytes) -> bpy.types.Image:
+    """An image packed with the .dds file's bytes as they are, named as a .dds
+    so the texture can pass it through."""
+    import tempfile
+
+    filename = re.sub(r"[^\w.-]", "_", name) + ".dds"
+    with tempfile.TemporaryDirectory() as directory:
+        path = os.path.join(directory, filename)
+        with open(path, "wb") as f:
+            f.write(data)
+        image = bpy.data.images.load(path)
+        image.pack()
+    image.name = name
+    image.filepath_raw = "//" + filename
+    return image
 
 
 def material_using_node_group(
@@ -833,33 +855,54 @@ def packed_dds(image: bpy.types.Image) -> Optional[Tuple[int, int, bytes]]:
 TextureVariant = Tuple[str, int, int, Union[bytes, "numpy.ndarray"]]
 
 
-def texture_export_files(
-    node_tree: bpy.types.ShaderNodeTree,
-) -> Tuple[bool, int, TextureFormatChoice, List[TextureVariant]]:
+def dds_file_bytes(image: bpy.types.Image) -> Optional[bytes]:
+    """The image's .dds file as it is, packed or on disk; None if missing."""
+    if image.packed_file is not None:
+        data: bytes = image.packed_file.data
+        return data
+    path = bpy.path.abspath(image.filepath, library=image.library)
+    try:
+        with open(path, "rb") as f:
+            return f.read()
+    except OSError:
+        return None
+
+
+def texture_export_files(node_tree: bpy.types.ShaderNodeTree) -> TextureExport:
+    """What to export for a texture: Blender's pixels (or packed DDS bytes) to
+    re-encode, or with pass-through the .dds files' bytes as they are (None
+    for a file that can't be read)."""
     import numpy
 
     internal = narrow(node_tree.nodes["internal"], ShaderNodeRBRTextureInternal)
     is_road = internal.is_road_surface
-    mip_levels = internal.mip_levels
     texture_format = _texture_format_id_to_choice(internal.texture_format)
-    ages = ["new", "normal", "worn"] if is_road else ["new"]
+    used = used_image_nodes(node_tree, is_road)
+    if passes_through_dds(internal):
+        files: List[Tuple[str, Optional[bytes]]] = []
+        unsaved: List[str] = []
+        for subdir, node in used:
+            image = narrow(node.image, bpy.types.Image)
+            files.append((subdir, dds_file_bytes(image)))
+            if image.is_dirty:
+                unsaved.append(subdir)
+        return TextureExport(
+            is_road, internal.mip_levels, texture_format, [], files, unsaved
+        )
     variants: List[TextureVariant] = []
-    for surface in ["dry", "damp", "wet"]:
-        for age in ages:
-            node = node_tree.nodes.get(f"{surface}/{age}")
-            if not isinstance(node, bpy.types.ShaderNodeTexImage) or node.image is None:
-                continue
-            subdir = f"{surface}/{age}" if is_road else surface
-            image = node.image
-            dds = packed_dds(image)
-            if dds is not None:
-                variants.append((subdir, *dds))
-                continue
-            width, height = image.size
-            pixels = numpy.empty(len(image.pixels), dtype="f")
-            image.pixels.foreach_get(pixels)
-            variants.append((subdir, width, height, pixels))
-    return (is_road, mip_levels, texture_format, variants)
+    for subdir, node in used:
+        image = narrow(node.image, bpy.types.Image)
+        dds = packed_dds(image)
+        if dds is not None:
+            variants.append((subdir, *dds))
+            continue
+        width, height = image.size
+        pixels = numpy.empty(len(image.pixels), dtype="f")
+        image.pixels.foreach_get(pixels)
+        variants.append((subdir, width, height, pixels))
+    return TextureExport(
+        is_road, internal.mip_levels, texture_format, variants, None, []
+    )
 
 
 ReifiedMaterial = Union[
