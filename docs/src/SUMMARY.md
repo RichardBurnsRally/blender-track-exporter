@@ -28,6 +28,7 @@
 
 # Legacy Addon (v0.x)
 
+- [Changes from v0.x](./legacy/changes.md)
 - [Downloads](./legacy/download.md)
 - [Guide](./legacy/guide.md)
   - [Features](./legacy/features.md)

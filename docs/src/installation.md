@@ -71,6 +71,8 @@ and save it with [v0.3.3](./legacy/download.md) first, then migrate.
 If the file links in other `.blend` libraries made with the old addon, migrate
 those first and then reopen this file.
 
+For what's different in v1, see [Changes from v0.x](./legacy/changes.md).
+
 After migrating, a dialog offers **Optional migrations**: changes to geometry,
 animation or datablocks that are worth checking one by one. Tick the ones to
 run. Until you dismiss it, the scene panel keeps a box with **Choose...** to
