@@ -44,7 +44,7 @@ def fixup_brake_wall_daemon(
         readonly_obj = update.id
         obj = bpy.data.objects[readonly_obj.name]
         scene_settings: RBRSceneSettings = scene.rbr_scene_settings
-        if obj != scene_settings.brake_wall:
+        if obj != scene_settings.brake_wall or obj.library is not None:
             continue
         spline = fixup_brake_wall_object(obj)
         if spline is None:

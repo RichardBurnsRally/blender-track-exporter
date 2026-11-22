@@ -452,22 +452,33 @@ class RBRSceneSettings(bpy.types.PropertyGroup):
         return True
 
     def update_brake_wall(self, context: bpy.types.Context) -> None:
-        if self.brake_wall is not None:
-            self.brake_wall.modifiers.clear()
-            nodes = self.brake_wall.modifiers.new(".rbr.brake_wall", "NODES")
+        obj = self.brake_wall
+        # linked data can't be edited, so it's used as the library set it up
+        if obj is None or obj.library is not None:
+            return
+        nodes = obj.modifiers.get(".rbr.brake_wall")
+        if not isinstance(nodes, bpy.types.NodesModifier):
+            nodes = obj.modifiers.new(".rbr.brake_wall", "NODES")
+        if nodes.node_group is None:
             nodes.node_group = make_brakewall_node_group()
-            if isinstance(self.brake_wall.data, bpy.types.Curve):
-                self.brake_wall.data.materials.clear()
-                mat = bpy.data.materials.new(".rbr.brake_wall")
-                mat.use_nodes = True
-                brake_wall.setup_brake_wall_tree(
-                    narrow(mat.node_tree, bpy.types.ShaderNodeTree)
-                )
-                # TODO do this in modifier?
-                self.brake_wall.data.materials.append(mat)
-                self.brake_wall.material_slots[0].link = "OBJECT"
-                self.brake_wall.material_slots[0].material = mat
-            fixup_brake_wall_object(self.brake_wall)
+        slot = obj.material_slots[0] if len(obj.material_slots) > 0 else None
+        has_material = (
+            slot is not None
+            and slot.material is not None
+            and slot.material.name.startswith(".rbr.brake_wall")
+        )
+        if isinstance(obj.data, bpy.types.Curve) and not has_material:
+            obj.data.materials.clear()
+            mat = bpy.data.materials.new(".rbr.brake_wall")
+            mat.use_nodes = True
+            brake_wall.setup_brake_wall_tree(
+                narrow(mat.node_tree, bpy.types.ShaderNodeTree)
+            )
+            # TODO do this in modifier?
+            obj.data.materials.append(mat)
+            obj.material_slots[0].link = "OBJECT"
+            obj.material_slots[0].material = mat
+        fixup_brake_wall_object(obj)
 
     brake_wall: bpy.props.PointerProperty(  # type: ignore
         name="Brake Wall",
