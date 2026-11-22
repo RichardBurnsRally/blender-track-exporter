@@ -34,16 +34,32 @@ jobs:
       - name: extension repository index
         env:
           GH_TOKEN: ${{ github.token }}
+          # A just-published release can take a few seconds to show up as published in the releases list.
+          WAIT_FOR: ${{ github.event_name == 'release' && github.event.action != 'deleted' && github.event.release.tag_name || '' }}
         run: |
+          set -o pipefail
+          list() {
+            gh api "repos/$GITHUB_REPOSITORY/releases" --paginate \
+              --jq '.[] | select(.draft | not) | [.published_at, .tag_name] | @tsv' | sort > releases.tsv
+          }
+          list
+          for _ in $(seq 12); do
+            [ -z "$WAIT_FOR" ] || cut -f2 releases.tsv | grep -qxF "$WAIT_FOR" && break
+            echo "waiting for $WAIT_FOR to be listed"
+            sleep 5
+            list
+          done
+          if [ -n "$WAIT_FOR" ] && ! cut -f2 releases.tsv | grep -qxF "$WAIT_FOR"; then
+            echo "error: $WAIT_FOR is not listed as published" >&2
+            exit 1
+          fi
           echo '{"version": "v1", "blocklist": [], "data": []}' > docs/book/index.json
-          gh api "repos/$GITHUB_REPOSITORY/releases" --paginate \
-            --jq '.[] | select(.draft | not) | [.published_at, .tag_name] | @tsv' \
-            | sort | while IFS=$'\t' read -r _ tag; do
-              rm -rf zips && mkdir zips
-              gh release download "$tag" -R "$GITHUB_REPOSITORY" -p '*.zip' -D zips || continue
-              base="https://github.com/$GITHUB_REPOSITORY/releases/download/$tag"
-              python3 scripts/extension-index.py --index docs/book/index.json --base-url "$base" zips/*.zip
-            done
+          while IFS=$'\t' read -r _ tag; do
+            rm -rf zips && mkdir zips
+            gh release download "$tag" -R "$GITHUB_REPOSITORY" -p '*.zip' -D zips
+            base="https://github.com/$GITHUB_REPOSITORY/releases/download/$tag"
+            python3 scripts/extension-index.py --index docs/book/index.json --base-url "$base" zips/*.zip
+          done < releases.tsv
       - uses: actions/upload-pages-artifact@v3
         with:
           path: docs/book
