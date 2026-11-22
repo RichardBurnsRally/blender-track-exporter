@@ -43,8 +43,10 @@ depends on where it is set:
   [Object Settings](../object-settings.md).
 - The **Exported** toggle is gone: exclude a collection from the view layer to
   keep objects out of the export.
-- The old instancer type is now the **Export real instances** option on any
-  plain object.
+- The instancer type is gone: instances (collection instances, geometry nodes
+  instances) export as they are. The **Export real instances** option is only
+  needed when each copy's modifiers must be evaluated at its own position. See
+  [Instances](../object-settings.md#instances).
 - **Sound triggers** aren't supported yet.
 
 ## Materials and textures
