@@ -50,7 +50,7 @@ class RBRWorldSettings(bpy.types.PropertyGroup):
 
     sun: bpy.props.PointerProperty(  # type: ignore
         name="Sun (Direction)",
-        description="Sun object to derive light direction from",
+        description="Sun light whose rotation sets the light direction. Only objects with a Sun light (not Point, Spot or Area) are listed",
         type=bpy.types.Object,
         update=lambda self, context: self.update_sun_direction(),
         poll=poll_sun,
