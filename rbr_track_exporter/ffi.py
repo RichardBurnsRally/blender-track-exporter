@@ -868,16 +868,22 @@ def dds_file_bytes(image: bpy.types.Image) -> Optional[bytes]:
         return None
 
 
-def texture_export_files(node_tree: bpy.types.ShaderNodeTree) -> TextureExport:
-    """What to export for a texture: Blender's pixels (or packed DDS bytes) to
-    re-encode, or with pass-through the .dds files' bytes as they are (None
-    for a file that can't be read)."""
+def texture_export_files(
+    node_tree: bpy.types.ShaderNodeTree, surfaces: List[str]
+) -> TextureExport:
+    """What to export for a texture's images in the given surface types:
+    Blender's pixels (or packed DDS bytes) to re-encode, or with pass-through
+    the .dds files' bytes as they are (None for a file that can't be read)."""
     import numpy
 
     internal = narrow(node_tree.nodes["internal"], ShaderNodeRBRTextureInternal)
     is_road = internal.is_road_surface
     texture_format = _texture_format_id_to_choice(internal.texture_format)
-    used = used_image_nodes(node_tree, is_road)
+    used = [
+        (subdir, node)
+        for subdir, node in used_image_nodes(node_tree, is_road)
+        if subdir.split("/")[0] in surfaces
+    ]
     if passes_through_dds(internal):
         files: List[Tuple[str, Optional[bytes]]] = []
         unsaved: List[str] = []
