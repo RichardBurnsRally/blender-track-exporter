@@ -29,7 +29,7 @@
 # Changelog
 
 - [1.0.0-rc.3](./changelog/1.0.0-rc.3.md)
-- [1.0.0](./changelog/1.0.0.md)
+- [1.0.0-rc.2](./changelog/1.0.0-rc.2.md)
 
 # Legacy Addon (v0.x)
 
