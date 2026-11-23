@@ -15,3 +15,4 @@ edit-url-template = "https://github.com/RichardBurnsRally/blender-track-exporter
 "/guide.html" = "legacy/guide.html"
 "/features.html" = "legacy/features.html"
 "/errors.html" = "legacy/errors.html"
+"/changelog/1.0.0.html" = "1.0.0-rc.2.html"
