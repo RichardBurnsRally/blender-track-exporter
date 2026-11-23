@@ -162,8 +162,11 @@ def frame_node_tree_selection(node_tree: bpy.types.NodeTree) -> None:
             node_tree.name
         except ReferenceError:  # tree deleted before the editor caught up
             return None
+        wm = bpy.context.window_manager
+        if wm is None:
+            return None
         framed = False
-        for window in bpy.context.window_manager.windows:
+        for window in wm.windows:
             screen = window.screen
             if screen is None:
                 continue
@@ -179,7 +182,7 @@ def frame_node_tree_selection(node_tree: bpy.types.NodeTree) -> None:
                     with bpy.context.temp_override(
                         window=window, screen=screen, area=area, region=region
                     ):
-                        if bpy.ops.node.view_selected.poll():
+                        if bpy.ops.node.view_selected.poll():  # type: ignore[call-arg]
                             bpy.ops.node.view_selected()
                             framed = True
         attempts[0] += 1
