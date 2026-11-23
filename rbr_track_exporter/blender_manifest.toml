@@ -1,7 +1,7 @@
 schema_version = "1.0.0"
 
 id = "rbr_track_exporter"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 name = "RBR Track Exporter"
 tagline = "Exporter for RBR's native track format"
 maintainer = "Tom Smalley"
