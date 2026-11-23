@@ -145,7 +145,50 @@ def jump_to_material(
         return
     for node in bad_material.node_tree.nodes:
         node.select = node == bad_node
-    run_shader_view_operator(lambda: bpy.ops.node.view_selected())
+    frame_node_tree_selection(bad_material.node_tree)
+
+
+def frame_node_tree_selection(node_tree: bpy.types.NodeTree) -> None:
+    """Frame the selected nodes in every shader editor showing node_tree.
+
+    Shader editors only pick up a change of active object/material when they
+    next refresh, so framing straight after jump_to_object would run against
+    the old (or no) tree and view_selected's poll fails. Retry from a timer
+    until an editor shows the tree, giving up after a short while."""
+    attempts = [0]
+
+    def try_frame() -> Optional[float]:
+        try:
+            node_tree.name
+        except ReferenceError:  # tree deleted before the editor caught up
+            return None
+        framed = False
+        for window in bpy.context.window_manager.windows:
+            screen = window.screen
+            if screen is None:
+                continue
+            for area in screen.areas:
+                if area.type != "NODE_EDITOR" or area.ui_type != "ShaderNodeTree":
+                    continue
+                space = area.spaces.active
+                if getattr(space, "edit_tree", None) != node_tree:
+                    continue
+                for region in area.regions:
+                    if region.type != "WINDOW":
+                        continue
+                    with bpy.context.temp_override(
+                        window=window, screen=screen, area=area, region=region
+                    ):
+                        if bpy.ops.node.view_selected.poll():
+                            bpy.ops.node.view_selected()
+                            framed = True
+        attempts[0] += 1
+        if framed or attempts[0] >= 20:
+            return None
+        return 0.05
+
+    if try_frame() is not None:
+        bpy.app.timers.register(try_frame, first_interval=0.05)
 
 
 def run_view3d_operator(f: Callable[[], object]) -> None:
@@ -171,17 +214,6 @@ def run_view3d_operator_once(f: Callable[[], object]) -> None:
                         f()
                     return
     f()
-
-
-def run_shader_view_operator(f: Callable[[], object]) -> None:
-    if bpy.context.screen is None:
-        return
-    for area in bpy.context.screen.areas:
-        if area.type == "NODE_EDITOR" and area.ui_type == "ShaderNodeTree":
-            for region in area.regions:
-                if region.type == "WINDOW":
-                    with bpy.context.temp_override(area=area, region=region):
-                        f()
 
 
 class RBR_OT_jump_to_message_source(bpy.types.Operator):
