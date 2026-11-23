@@ -28,6 +28,7 @@
 
 # Changelog
 
+- [Unreleased](./changelog/unreleased.md)
 - [1.0.0](./changelog/1.0.0.md)
 
 # Legacy Addon (v0.x)
