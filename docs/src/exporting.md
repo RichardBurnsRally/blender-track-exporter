@@ -24,6 +24,14 @@ These sit above the **Export** button in Export Settings:
 
 - **Compress textures** (on by default) — turn off for a faster export and a
   bigger textures archive. See [Scene Settings](./scene-settings.md).
+- **Keep existing pacenotes** (off by default) — takes the pacenotes from the
+  `.dls` files already in the export folder instead of the driveline. Use this
+  after editing pacenotes in another tool. Start, splits, finish and end of
+  stage still come from the driveline, as does everything else in the `.dls`.
+  The export warns if there's no `.dls` to keep them from, if the driveline
+  changed since the last export (kept pacenotes are placed by distance along
+  it, so they may have shifted), or if kept pacenotes are past the end of the
+  driveline.
 - **Simplify shadows (experimental)** (off by default) — makes the stage
   smaller at the cost of a slower export. See [Shadows](./shadows.md).
 

@@ -71,6 +71,7 @@ def draw_export_settings(
     ui_split(ui, "Surface").prop(scene_settings, "surface", text="")
     box = ui.box()
     box.prop(scene_settings, "compress_textures")
+    box.prop(scene_settings, "keep_existing_pacenotes")
     box.prop(scene_settings, "simplify_shadows")
     if scene_settings.simplify_shadows:
         ui_split(box, "Dedup Threshold").prop(

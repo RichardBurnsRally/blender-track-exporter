@@ -295,6 +295,7 @@ class RBR_OT_export_track(bpy.types.Operator):
             scene_settings.shadow_dedup_threshold,
             scene_settings.shadow_gradient_threshold,
             scene_settings.compress_textures,
+            scene_settings.keep_existing_pacenotes,
         )
         errors = "1 error" if num_errors == 1 else f"{num_errors} errors"
         warnings = "1 warning" if num_warnings == 1 else f"{num_warnings} warnings"

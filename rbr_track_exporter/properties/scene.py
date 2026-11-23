@@ -392,6 +392,11 @@ class RBRSceneSettings(bpy.types.PropertyGroup):
         ),
         default=True,
     )
+    keep_existing_pacenotes: bpy.props.BoolProperty(  # type: ignore
+        name="Keep existing pacenotes",
+        description="Don't overwrite pacenotes in the export folder's .dls files",
+        default=False,
+    )
     shadow_dedup_threshold: bpy.props.FloatProperty(  # type: ignore
         name="Dedup Threshold",
         description=(
