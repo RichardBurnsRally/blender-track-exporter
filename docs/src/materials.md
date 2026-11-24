@@ -49,6 +49,33 @@ Texture node.
 For every type except Geom Block and Clipping Plane, the material's **Backface
 Culling** setting is exported: turn it off for double-sided faces.
 
+### Example setups
+
+A Geom Block with one texture, the vertex colour as **Color** and the vertex
+alpha as **Blend**:
+
+![A Geom Block with one texture and vertex colour](images/shader-geom-block.png)
+
+Every Geom Block input in use: **Texture 2** blended over **Texture 1** by
+**Blend**, a specular texture with its strength from an attribute, and a
+baked shadow image on its own UV map:
+
+![A Geom Block using two textures, specular and a shadow texture](images/shader-geom-block-full.png)
+
+An Object Block, such as a bush, with its vertex colour and alpha. The
+**Vertex Sway** inputs set how it sways in the wind in game:
+
+![An Object Block with vertex colour and sway](images/shader-object-block.png)
+
+A different vertex colour per tint set, through an **RBR Tint Set** node:
+
+![Vertex colour chosen per tint set](images/shader-tint-set.png)
+
+A scrolling texture, such as water: a **UV Velocity** node between the UV map
+and the RBR Texture:
+
+![A Water Object texture scrolled by UV Velocity](images/shader-uv-velocity.png)
+
 ## RBR Texture node
 
 The top row picks the texture: browse existing textures, rename it, see how
@@ -123,9 +150,15 @@ The Attribute node's type decides where the value comes from, in this order:
 
 For example, to make distant trees Super Bowl: in the scatter's geometry
 nodes, store a Boolean `superbowl` on the Instance domain from a distance
-comparison. Then in the tree material, connect an Instancer Attribute node
-named `superbowl` to the Index Switch, with the Object Block shader on input 0
-and the Super Bowl shader on input 1.
+comparison:
+
+![A scatter storing superbowl on its instances](images/switch-scatter.png)
+
+Then in the tree material, connect an Instancer Attribute node named
+`superbowl` to the Index Switch, with the Object Block shader on input 0 and
+the Super Bowl shader on input 1:
+
+![A tree material switching between Object Block and Super Bowl](images/switch-material.png)
 
 The switch must come straight after the Material Output (reroutes and node
 groups aside). A plain **Switch** or **Menu Switch** in front of RBR shaders is
