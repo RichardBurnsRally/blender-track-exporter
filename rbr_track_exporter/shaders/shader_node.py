@@ -1,14 +1,16 @@
 """Shader nodes for RBR object types."""
 
 from dataclasses import dataclass
-from typing import Any, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 import math
 
 from .texture import (
     ShaderNodeRBRTexture,
     tree_name_to_texture_name,
-    RBR_TEXTURE_COLOR_OUTPUT,
-    RBR_TEXTURE_ALPHA_OUTPUT,
+    RBR_TEXTURE_OUTPUT,
+    TEXTURE_BUNDLE_ALPHA,
+    TEXTURE_BUNDLE_COLOR,
+    TEXTURE_BUNDLE_PRESENT,
 )
 from .utils import *
 from . import sky
@@ -26,17 +28,8 @@ from ..types import *
 
 SHADER_PREFIX: str = ".ShaderNodeRBR."
 
-# We use a sentinel value to detect unconnected sockets.
-# This means we can leave the second texture sockets in place, and alter the
-# shader graph depending on if the user connected them, which is better than
-# having to add a checkbox and juggle multiple shader trees for each object
-# type which supports double texturing.
-TEXTURE_2_SENTINEL_VALUE: float = -100
-
 SHADER_GB_TEXTURE_1 = "Texture 1"
-SHADER_GB_TEXTURE_1_ALPHA = "Texture 1 Alpha"
 SHADER_GB_TEXTURE_2 = "Texture 2"
-SHADER_GB_TEXTURE_2_ALPHA = "Texture 2 Alpha"
 SHADER_GB_SPECULAR_TEXTURE = "Specular Texture"
 SHADER_GB_SHADOW_TEXTURE = "Shadow Texture"
 SHADER_GB_COLOR = "Color"
@@ -47,7 +40,6 @@ SHADER_GB_OUTPUT_SURFACE = "Surface"
 SHADER_GB_OUTPUT_COLOR = "Unlit Color"
 
 SHADER_OB_TEXTURE_1 = "Texture"
-SHADER_OB_TEXTURE_1_ALPHA = "Texture Alpha"
 SHADER_OB_COLOR = "Color"
 SHADER_OB_ALPHA = "Alpha"
 SHADER_OB_SWAY_FREQ = "Frequency"
@@ -67,14 +59,8 @@ class ObjectDataSockets:
     def texture_1(self) -> str:
         return "Texture 1"
 
-    def texture_1_alpha(self) -> str:
-        return "Texture 1 Alpha"
-
     def texture_2(self) -> str:
         return "Texture 2"
-
-    def texture_2_alpha(self) -> str:
-        return "Texture 2 Alpha"
 
     def color(self) -> str:
         return "Color"
@@ -125,22 +111,57 @@ def check_object_type(
     )
 
 
+@dataclass
+class TextureSockets:
+    color: bpy.types.NodeSocket
+    alpha: bpy.types.NodeSocket
+    present: bpy.types.NodeSocket
+
+
+def separate_texture(
+    node_tree: bpy.types.NodeTree,
+    bundle: bpy.types.NodeSocket,
+    unconnected_color: List[float],
+) -> TextureSockets:
+    """A texture input's colour and alpha, and whether a texture is connected;
+    where none is, the colour is unconnected_color and the alpha 1."""
+    separate = new_node(node_tree.nodes, bpy.types.NodeSeparateBundle)
+    separate.bundle_items.new("RGBA", TEXTURE_BUNDLE_COLOR)
+    separate.bundle_items.new("FLOAT", TEXTURE_BUNDLE_ALPHA)
+    separate.bundle_items.new("FLOAT", TEXTURE_BUNDLE_PRESENT)
+    node_tree.links.new(bundle, socket(separate.inputs, "Bundle"))
+    present = socket(separate.outputs, TEXTURE_BUNDLE_PRESENT)
+    return TextureSockets(
+        color=rgb_select(
+            node_tree,
+            present,
+            unconnected_color,
+            socket(separate.outputs, TEXTURE_BUNDLE_COLOR),
+        ),
+        alpha=float_select(
+            node_tree, present, 1.0, socket(separate.outputs, TEXTURE_BUNDLE_ALPHA)
+        ),
+        present=present,
+    )
+
+
+WHITE = [1.0, 1.0, 1.0, 1.0]
+BLACK = [0.0, 0.0, 0.0, 1.0]
+
+
 def make_geom_block(
     node_tree: bpy.types.NodeTree,
 ) -> None:
-    input_sockets = group_input(node_tree).outputs
-    [
-        texture_1_color,
-        texture_1_alpha,
-        texture_2_color,
-        texture_2_alpha,
-        specular_color,
-        shadow_texture,
-        vcol_in,
-        vcol_alpha,
-        specular_strength,
-        *_,
-    ] = list(input_sockets)
+    inputs = group_input(node_tree).outputs
+    texture_1 = separate_texture(node_tree, socket(inputs, SHADER_GB_TEXTURE_1), WHITE)
+    texture_2 = separate_texture(node_tree, socket(inputs, SHADER_GB_TEXTURE_2), WHITE)
+    specular_color = separate_texture(
+        node_tree, socket(inputs, SHADER_GB_SPECULAR_TEXTURE), BLACK
+    ).color
+    shadow_texture = socket(inputs, SHADER_GB_SHADOW_TEXTURE)
+    vcol_in = socket(inputs, SHADER_GB_COLOR)
+    vcol_alpha = socket(inputs, SHADER_GB_BLEND)
+    specular_strength = socket(inputs, SHADER_GB_SPECULAR_STRENGTH)
 
     output_sockets = group_output(node_tree).inputs
     [output_surface, output_color, *_] = list(output_sockets)
@@ -161,22 +182,20 @@ def make_geom_block(
         True,
     )
 
-    alpha = float_sentinel(
+    # Texture 2, where connected, is blended over texture 1 by the vertex
+    # alpha, and the alpha is texture 1's alone.
+    alpha = float_select(
         node_tree,
-        TEXTURE_2_SENTINEL_VALUE,
-        texture_2_alpha,
-        disconnected=float_multiply(node_tree, vcol_alpha, texture_1_alpha, True),
-        connected=texture_1_alpha,
+        texture_2.present,
+        float_multiply(node_tree, vcol_alpha, texture_1.alpha, True),
+        texture_1.alpha,
     )
-    blend = float_multiply(node_tree, vcol_alpha, texture_2_alpha, True)
-    texture = rgb_sentinel(
+    blend = float_multiply(node_tree, vcol_alpha, texture_2.alpha, True)
+    texture = rgb_select(
         node_tree,
-        TEXTURE_2_SENTINEL_VALUE,
-        texture_2_alpha,
-        disconnected=texture_1_color,
-        connected=mix_rgb(
-            node_tree, blend, texture_1_color, texture_2_color, "MIX", True
-        ),
+        texture_2.present,
+        texture_1.color,
+        mix_rgb(node_tree, blend, texture_1.color, texture_2.color, "MIX", True),
     )
     texture_vcol = mix_rgb(node_tree, 1.0, vcol, texture, "MULTIPLY", True)
     beckmann_glossiness = rbr_scene_vector(node_tree, "geom_block_specular_glossiness")
@@ -211,17 +230,15 @@ def make_geom_block(
 def make_object_block(
     node_tree: bpy.types.NodeTree,
 ) -> None:
-    input_sockets = group_input(node_tree).outputs
-    [
-        texture_color,
-        texture_alpha,
-        vcol_in,
-        vcol_alpha,
-        sway_freq,
-        sway_amp,
-        sway_phase,
-        *_,
-    ] = list(input_sockets)
+    inputs = group_input(node_tree).outputs
+    texture = separate_texture(node_tree, socket(inputs, SHADER_OB_TEXTURE_1), WHITE)
+    texture_color = texture.color
+    texture_alpha = texture.alpha
+    vcol_in = socket(inputs, SHADER_OB_COLOR)
+    vcol_alpha = socket(inputs, SHADER_OB_ALPHA)
+    sway_freq = socket(inputs, SHADER_OB_SWAY_FREQ)
+    sway_amp = socket(inputs, SHADER_OB_SWAY_AMP)
+    sway_phase = socket(inputs, SHADER_OB_SWAY_PHASE)
 
     output_sockets = group_output(node_tree).inputs
     [output_surface, output_displacement, output_color, output_alpha, *_] = list(
@@ -275,16 +292,12 @@ def make_object_block(
 def make_super_bowl(
     node_tree: bpy.types.NodeTree,
 ) -> None:
-    input_sockets = group_input(node_tree).outputs
-    [
-        texture_1_color,
-        texture_1_alpha,
-        texture_2_color,
-        texture_2_alpha,
-        vcol_in,
-        vcol_alpha,
-        *_,
-    ] = list(input_sockets)
+    inputs = group_input(node_tree).outputs
+    sockets = SHADER_SB_SOCKETS
+    texture_1 = separate_texture(node_tree, socket(inputs, sockets.texture_1()), WHITE)
+    texture_2 = separate_texture(node_tree, socket(inputs, sockets.texture_2()), WHITE)
+    vcol_in = socket(inputs, sockets.color())
+    vcol_alpha = socket(inputs, sockets.alpha_blend())
 
     output_sockets = group_output(node_tree).inputs
     [output_surface, output_color, *_] = list(output_sockets)
@@ -305,22 +318,20 @@ def make_super_bowl(
         True,
     )
 
-    alpha = float_sentinel(
+    # Texture 2, where connected, is blended over texture 1 by the vertex
+    # alpha, and the alpha is texture 1's alone.
+    alpha = float_select(
         node_tree,
-        TEXTURE_2_SENTINEL_VALUE,
-        texture_2_alpha,
-        disconnected=float_multiply(node_tree, vcol_alpha, texture_1_alpha, True),
-        connected=texture_1_alpha,
+        texture_2.present,
+        float_multiply(node_tree, vcol_alpha, texture_1.alpha, True),
+        texture_1.alpha,
     )
-    blend = float_multiply(node_tree, vcol_alpha, texture_2_alpha, True)
-    texture = rgb_sentinel(
+    blend = float_multiply(node_tree, vcol_alpha, texture_2.alpha, True)
+    texture = rgb_select(
         node_tree,
-        TEXTURE_2_SENTINEL_VALUE,
-        texture_2_alpha,
-        disconnected=texture_1_color,
-        connected=mix_rgb(
-            node_tree, blend, texture_1_color, texture_2_color, "MIX", True
-        ),
+        texture_2.present,
+        texture_1.color,
+        mix_rgb(node_tree, blend, texture_1.color, texture_2.color, "MIX", True),
     )
     result = mix_rgb(node_tree, 1.0, vcol, texture, "MULTIPLY", True)
     result = mix_rgb(
@@ -344,18 +355,16 @@ def make_super_bowl(
 def make_water_object(
     node_tree: bpy.types.NodeTree,
 ) -> None:
-    input_sockets = group_input(node_tree).outputs
-    [
-        texture_1_color,
-        texture_1_alpha,
-        texture_2_color,
-        texture_2_alpha,
-        specular_texture,
-        vcol_in,
-        vcol_alpha,
-        specular_strength,
-        *_,
-    ] = list(input_sockets)
+    inputs = group_input(node_tree).outputs
+    sockets = SHADER_WO_SOCKETS
+    texture_1 = separate_texture(node_tree, socket(inputs, sockets.texture_1()), WHITE)
+    texture_2 = separate_texture(node_tree, socket(inputs, sockets.texture_2()), WHITE)
+    specular_texture = separate_texture(
+        node_tree, socket(inputs, sockets.specular_texture()), BLACK
+    ).color
+    vcol_in = socket(inputs, sockets.color())
+    vcol_alpha = socket(inputs, sockets.alpha_blend())
+    specular_strength = socket(inputs, sockets.specular_strength())
 
     output_sockets = group_output(node_tree).inputs
     [output_surface, output_color, *_] = list(output_sockets)
@@ -377,23 +386,20 @@ def make_water_object(
     )
 
     # TODO is this right?
-    alpha = float_sentinel(
+    # Texture 2, where connected, is blended over texture 1 by the vertex
+    # alpha, and the alpha is texture 1's alone.
+    alpha = float_select(
         node_tree,
-        TEXTURE_2_SENTINEL_VALUE,
-        texture_2_alpha,
-        disconnected=float_multiply(node_tree, vcol_alpha, texture_1_alpha, True),
-        connected=texture_1_alpha,
+        texture_2.present,
+        float_multiply(node_tree, vcol_alpha, texture_1.alpha, True),
+        texture_1.alpha,
     )
-    blend = float_multiply(node_tree, vcol_alpha, texture_2_alpha, True)
-    # TODO is this right?
-    texture = rgb_sentinel(
+    blend = float_multiply(node_tree, vcol_alpha, texture_2.alpha, True)
+    texture = rgb_select(
         node_tree,
-        TEXTURE_2_SENTINEL_VALUE,
-        texture_2_alpha,
-        disconnected=texture_1_color,
-        connected=mix_rgb(
-            node_tree, blend, texture_1_color, texture_2_color, "MIX", True
-        ),
+        texture_2.present,
+        texture_1.color,
+        mix_rgb(node_tree, blend, texture_1.color, texture_2.color, "MIX", True),
     )
 
     beckmann_glossiness = rbr_scene_vector(node_tree, "geom_block_specular_glossiness")
@@ -422,17 +428,13 @@ def make_water_object(
 
 def make_reflection_object(
     node_tree: bpy.types.NodeTree,
+    sockets: ObjectDataSockets = SHADER_RO_SOCKETS,
 ) -> None:
-    input_sockets = group_input(node_tree).outputs
-    [
-        texture_1_color,
-        texture_1_alpha,
-        texture_2_color,
-        texture_2_alpha,
-        vcol_in,
-        vcol_alpha,
-        *_,
-    ] = list(input_sockets)
+    inputs = group_input(node_tree).outputs
+    texture_1 = separate_texture(node_tree, socket(inputs, sockets.texture_1()), WHITE)
+    texture_2 = separate_texture(node_tree, socket(inputs, sockets.texture_2()), WHITE)
+    vcol_in = socket(inputs, sockets.color())
+    vcol_alpha = socket(inputs, sockets.alpha_blend())
 
     output_sockets = group_output(node_tree).inputs
     [output_surface, output_color, *_] = list(output_sockets)
@@ -454,23 +456,20 @@ def make_reflection_object(
     )
 
     # TODO is this right?
-    alpha = float_sentinel(
+    # Texture 2, where connected, is blended over texture 1 by the vertex
+    # alpha, and the alpha is texture 1's alone.
+    alpha = float_select(
         node_tree,
-        TEXTURE_2_SENTINEL_VALUE,
-        texture_2_alpha,
-        disconnected=float_multiply(node_tree, vcol_alpha, texture_1_alpha, True),
-        connected=texture_1_alpha,
+        texture_2.present,
+        float_multiply(node_tree, vcol_alpha, texture_1.alpha, True),
+        texture_1.alpha,
     )
-    blend = float_multiply(node_tree, vcol_alpha, texture_2_alpha, True)
-    # TODO is this right?
-    texture = rgb_sentinel(
+    blend = float_multiply(node_tree, vcol_alpha, texture_2.alpha, True)
+    texture = rgb_select(
         node_tree,
-        TEXTURE_2_SENTINEL_VALUE,
-        texture_2_alpha,
-        disconnected=texture_1_color,
-        connected=mix_rgb(
-            node_tree, blend, texture_1_color, texture_2_color, "MIX", True
-        ),
+        texture_2.present,
+        texture_1.color,
+        mix_rgb(node_tree, blend, texture_1.color, texture_2.color, "MIX", True),
     )
 
     result = mix_rgb(node_tree, 1.0, vcol, texture, "MULTIPLY", True)
@@ -493,16 +492,12 @@ def make_reflection_object(
 def make_interactive_object(
     node_tree: bpy.types.NodeTree,
 ) -> None:
-    input_sockets = group_input(node_tree).outputs
-    [
-        texture_1_color,
-        texture_1_alpha,
-        texture_2_color,
-        texture_2_alpha,
-        vcol_in,
-        vcol_alpha,
-        *_,
-    ] = list(input_sockets)
+    inputs = group_input(node_tree).outputs
+    sockets = SHADER_IO_SOCKETS
+    texture_1 = separate_texture(node_tree, socket(inputs, sockets.texture_1()), WHITE)
+    texture_2 = separate_texture(node_tree, socket(inputs, sockets.texture_2()), WHITE)
+    vcol_in = socket(inputs, sockets.color())
+    vcol_alpha = socket(inputs, sockets.alpha_blend())
 
     output_sockets = group_output(node_tree).inputs
     [output_surface, output_color, *_] = list(output_sockets)
@@ -523,22 +518,20 @@ def make_interactive_object(
         True,
     )
 
-    alpha = float_sentinel(
+    # Texture 2, where connected, is blended over texture 1 by the vertex
+    # alpha, and the alpha is texture 1's alone.
+    alpha = float_select(
         node_tree,
-        TEXTURE_2_SENTINEL_VALUE,
-        texture_2_alpha,
-        disconnected=float_multiply(node_tree, vcol_alpha, texture_1_alpha, True),
-        connected=texture_1_alpha,
+        texture_2.present,
+        float_multiply(node_tree, vcol_alpha, texture_1.alpha, True),
+        texture_1.alpha,
     )
-    blend = float_multiply(node_tree, vcol_alpha, texture_2_alpha, True)
-    texture = rgb_sentinel(
+    blend = float_multiply(node_tree, vcol_alpha, texture_2.alpha, True)
+    texture = rgb_select(
         node_tree,
-        TEXTURE_2_SENTINEL_VALUE,
-        texture_2_alpha,
-        disconnected=texture_1_color,
-        connected=mix_rgb(
-            node_tree, blend, texture_1_color, texture_2_color, "MIX", True
-        ),
+        texture_2.present,
+        texture_1.color,
+        mix_rgb(node_tree, blend, texture_1.color, texture_2.color, "MIX", True),
     )
     result = mix_rgb(node_tree, 1.0, vcol, texture, "MULTIPLY", True)
     result = mix_rgb(
@@ -683,15 +676,13 @@ def recreate_internals(context: bpy.types.Context) -> None:
         else:
             continue
         node_tree.links.clear()
-        for node in node_tree.nodes:
-            if isinstance(node, bpy.types.NodeGroupInput):
-                continue
-            if isinstance(node, bpy.types.NodeGroupOutput):
-                continue
-            node_tree.nodes.remove(node)
-
+        # The group input and output go too: their sockets would otherwise
+        # lag behind the rebuilt interface.
+        node_tree.nodes.clear()
         node_tree.interface.clear()
         create_sockets(node_tree.interface, mesh_type)
+        new_node(node_tree.nodes, bpy.types.NodeGroupInput)
+        new_node(node_tree.nodes, bpy.types.NodeGroupOutput)
 
         create_shader(
             node_tree=node_tree,
@@ -773,11 +764,9 @@ def create_sockets(
     od_sockets = None
     if mesh_type is RBRMeshMaterialType.GEOM_BLOCK:
         textures = interface.new_panel("Textures")
-        input_tex(SHADER_GB_TEXTURE_1, "Color", textures)
-        input_tex(SHADER_GB_TEXTURE_1_ALPHA, "Float", textures)
-        input_tex(SHADER_GB_TEXTURE_2, "Color", textures)
-        input_tex(SHADER_GB_TEXTURE_2_ALPHA, "Float", textures)
-        input_tex(SHADER_GB_SPECULAR_TEXTURE, "Color", textures)
+        input_tex(SHADER_GB_TEXTURE_1, "Bundle", textures)
+        input_tex(SHADER_GB_TEXTURE_2, "Bundle", textures)
+        input_tex(SHADER_GB_SPECULAR_TEXTURE, "Bundle", textures)
         input_tex(SHADER_GB_SHADOW_TEXTURE, "Color", textures)
         vertex_data = interface.new_panel("Vertex Data")
         input_vcol(SHADER_GB_COLOR, "Color", vertex_data)
@@ -791,8 +780,7 @@ def create_sockets(
         add_output_socket(SHADER_GB_OUTPUT_COLOR, "NodeSocketColor")
     elif mesh_type is RBRMeshMaterialType.OBJECT_BLOCK:
         textures = interface.new_panel("Textures")
-        input_tex(SHADER_OB_TEXTURE_1, "Color", textures)
-        input_tex(SHADER_OB_TEXTURE_1_ALPHA, "Float", textures)
+        input_tex(SHADER_OB_TEXTURE_1, "Bundle", textures)
         vertex_data = interface.new_panel("Vertex Data")
         input_vcol(SHADER_OB_COLOR, "Color", vertex_data)
         input_vcol(SHADER_OB_ALPHA, "Float", vertex_data, 0, 1)
@@ -824,12 +812,10 @@ def create_sockets(
 
     if od_sockets is not None:
         textures = interface.new_panel("Textures")
-        input_tex(od_sockets.texture_1(), "Color", textures)
-        input_tex(od_sockets.texture_1_alpha(), "Float", textures)
-        input_tex(od_sockets.texture_2(), "Color", textures)
-        input_tex(od_sockets.texture_2_alpha(), "Float", textures)
+        input_tex(od_sockets.texture_1(), "Bundle", textures)
+        input_tex(od_sockets.texture_2(), "Bundle", textures)
         if od_sockets.has_specular:
-            input_tex(od_sockets.specular_texture(), "Color", textures)
+            input_tex(od_sockets.specular_texture(), "Bundle", textures)
         vertex_data = interface.new_panel("Vertex Data")
         input_vcol(od_sockets.color(), "Color", vertex_data)
         input_vcol(od_sockets.alpha_blend(), "Float", vertex_data, 0, 1)
@@ -856,9 +842,42 @@ def create_shader(
     elif mesh_type is RBRMeshMaterialType.REFLECTION_OBJECT:
         make_reflection_object(node_tree)
     elif mesh_type is RBRMeshMaterialType.INTERACTIVE_OBJECT_VISUAL:
-        make_reflection_object(node_tree)
+        make_reflection_object(node_tree, SHADER_IO_SOCKETS)
     else:
         print("not implemented!", mesh_type.name)
+
+
+def input_defaults(mesh_type: RBRMeshMaterialType) -> Dict[str, Any]:
+    """The defaults of an RBR shader's value inputs; texture inputs take
+    theirs from separate_texture."""
+    if mesh_type is RBRMeshMaterialType.GEOM_BLOCK:
+        return {
+            SHADER_GB_SHADOW_TEXTURE: WHITE,
+            SHADER_GB_COLOR: WHITE,
+            SHADER_GB_BLEND: 1,
+            SHADER_GB_SPECULAR_STRENGTH: 1,
+            SHADER_GB_COLLISION_SHADING: 0.5,
+        }
+    if mesh_type is RBRMeshMaterialType.OBJECT_BLOCK:
+        return {
+            SHADER_OB_COLOR: WHITE,
+            SHADER_OB_ALPHA: 1,
+            SHADER_OB_SWAY_FREQ: 1,
+            SHADER_OB_SWAY_AMP: 0,
+            SHADER_OB_SWAY_PHASE: 0,
+        }
+    sockets = {
+        RBRMeshMaterialType.SUPER_BOWL: SHADER_SB_SOCKETS,
+        RBRMeshMaterialType.WATER_OBJECT: SHADER_WO_SOCKETS,
+        RBRMeshMaterialType.REFLECTION_OBJECT: SHADER_RO_SOCKETS,
+        RBRMeshMaterialType.INTERACTIVE_OBJECT_VISUAL: SHADER_IO_SOCKETS,
+    }.get(mesh_type)
+    if sockets is None:
+        return {}
+    defaults: Dict[str, Any] = {sockets.color(): WHITE, sockets.alpha_blend(): 1}
+    if sockets.has_specular:
+        defaults[sockets.specular_strength()] = 1
+    return defaults
 
 
 class ShaderNodeRBR(bpy.types.ShaderNodeCustomGroup):
@@ -871,122 +890,11 @@ class ShaderNodeRBR(bpy.types.ShaderNodeCustomGroup):
         self.node_tree = narrow(
             use_rbr_shader_node_tree(mesh_type), bpy.types.ShaderNodeTree
         )
-        # Set defaults
-        if mesh_type is RBRMeshMaterialType.CLIPPING_PLANE:
-            pass
-        elif mesh_type is RBRMeshMaterialType.GEOM_BLOCK:
-            [
-                texture_1_color,
-                texture_1_alpha,
-                texture_2_color,
-                texture_2_alpha,
-                specular_color,
-                shadow_texture,
-                vcol_in,
-                vcol_alpha,
-                specular_strength,
-                collision_shading,
-                *_,
-            ] = list(self.inputs)
-            texture_1_color.default_value = [1, 1, 1, 1]
-            texture_1_alpha.default_value = 1
-            texture_2_color.default_value = [1, 1, 1, 1]
-            texture_2_alpha.default_value = TEXTURE_2_SENTINEL_VALUE
-            specular_color.default_value = [0, 0, 0, 1]
-            shadow_texture.default_value = [1, 1, 1, 1]
-            vcol_in.default_value = [1, 1, 1, 1]
-            vcol_alpha.default_value = 1
-            specular_strength.default_value = 1
-            collision_shading.default_value = 0.5
-            self.update_collision_shading_socket(context)
-        elif mesh_type is RBRMeshMaterialType.OBJECT_BLOCK:
-            [
-                texture_color,
-                texture_alpha,
-                vcol_in,
-                vcol_alpha,
-                sway_freq,
-                sway_amp,
-                sway_phase,
-                *_,
-            ] = list(self.inputs)
-            texture_color.default_value = [1, 1, 1, 1]
-            texture_alpha.default_value = 1
-            vcol_in.default_value = [1, 1, 1, 1]
-            vcol_alpha.default_value = 1
-            sway_freq.default_value = 1
-            sway_amp.default_value = 0
-            sway_phase.default_value = 0
-        elif mesh_type is RBRMeshMaterialType.SUPER_BOWL:
-            [
-                texture_1_color,
-                texture_1_alpha,
-                texture_2_color,
-                texture_2_alpha,
-                vcol_in,
-                vcol_alpha,
-                *_,
-            ] = list(self.inputs)
-            texture_1_color.default_value = [1, 1, 1, 1]
-            texture_1_alpha.default_value = 1
-            texture_2_color.default_value = [1, 1, 1, 1]
-            texture_2_alpha.default_value = TEXTURE_2_SENTINEL_VALUE
-            vcol_in.default_value = [1, 1, 1, 1]
-            vcol_alpha.default_value = 1
-        elif mesh_type is RBRMeshMaterialType.WATER_OBJECT:
-            [
-                texture_1_color,
-                texture_1_alpha,
-                texture_2_color,
-                texture_2_alpha,
-                specular_color,
-                vcol_in,
-                vcol_alpha,
-                specular_strength,
-                *_,
-            ] = list(self.inputs)
-            texture_1_color.default_value = [1, 1, 1, 1]
-            texture_1_alpha.default_value = 1
-            texture_2_color.default_value = [1, 1, 1, 1]
-            texture_2_alpha.default_value = TEXTURE_2_SENTINEL_VALUE
-            specular_color.default_value = [0, 0, 0, 1]
-            vcol_in.default_value = [1, 1, 1, 1]
-            vcol_alpha.default_value = 1
-            specular_strength.default_value = 1
-        elif mesh_type is RBRMeshMaterialType.REFLECTION_OBJECT:
-            [
-                texture_1_color,
-                texture_1_alpha,
-                texture_2_color,
-                texture_2_alpha,
-                vcol_in,
-                vcol_alpha,
-                *_,
-            ] = list(self.inputs)
-            texture_1_color.default_value = [1, 1, 1, 1]
-            texture_1_alpha.default_value = 1
-            texture_2_color.default_value = [1, 1, 1, 1]
-            texture_2_alpha.default_value = TEXTURE_2_SENTINEL_VALUE
-            vcol_in.default_value = [1, 1, 1, 1]
-            vcol_alpha.default_value = 1
-        elif mesh_type is RBRMeshMaterialType.INTERACTIVE_OBJECT_VISUAL:
-            [
-                texture_1_color,
-                texture_1_alpha,
-                texture_2_color,
-                texture_2_alpha,
-                vcol_in,
-                vcol_alpha,
-                *_,
-            ] = list(self.inputs)
-            texture_1_color.default_value = [1, 1, 1, 1]
-            texture_1_alpha.default_value = 1
-            texture_2_color.default_value = [1, 1, 1, 1]
-            texture_2_alpha.default_value = TEXTURE_2_SENTINEL_VALUE
-            vcol_in.default_value = [1, 1, 1, 1]
-            vcol_alpha.default_value = 1
-        else:
-            print("not yet implemented: default for ", mesh_type)
+        for name, value in input_defaults(mesh_type).items():
+            input = self.inputs.get(name)
+            if input is not None:
+                input.default_value = value
+        self.update_collision_shading_socket(context)
 
     mesh_type: bpy.props.EnumProperty(  # type: ignore
         items=[
@@ -1076,21 +984,12 @@ def create_texture_and_uv(
     node_tree: bpy.types.NodeTree,
     tex_tree: bpy.types.ShaderNodeTree,
     uv_layer: str,
-    color: bpy.types.NodeSocketColor,
-    alpha: Optional[bpy.types.NodeSocketFloat],
+    texture_input: bpy.types.NodeSocket,
     uv_velocity: List[float],  # FloatVectorProperty
 ) -> None:
     tex_node = narrow(node_tree.nodes.new("ShaderNodeRBRTexture"), ShaderNodeRBRTexture)
     tex_node.node_tree = tex_tree
-    node_tree.links.new(
-        socket(tex_node.outputs, RBR_TEXTURE_COLOR_OUTPUT),
-        color,
-    )
-    if alpha is not None:
-        node_tree.links.new(
-            socket(tex_node.outputs, RBR_TEXTURE_ALPHA_OUTPUT),
-            alpha,
-        )
+    node_tree.links.new(socket(tex_node.outputs, RBR_TEXTURE_OUTPUT), texture_input)
     uv_node = new_node(node_tree.nodes, bpy.types.ShaderNodeUVMap)
     uv_node.uv_map = uv_layer
     if uv_velocity[0] == 0 and uv_velocity[1] == 0:

@@ -12,3 +12,10 @@ Changes since 1.0.0-rc.4, for the next release.
   the shader per instance or object, from a geometry nodes instance attribute
   or a custom property; for example Super Bowl for distant scattered trees.
   See [Materials & Shading](../materials.md#switching-shaders-per-instance).
+
+## Changed
+
+- **One link per texture.** The RBR Texture node has a single **Texture**
+  output carrying its colour and alpha, and the RBR Shader a single input per
+  texture, instead of separate colour and alpha sockets. Files are updated
+  when opened.

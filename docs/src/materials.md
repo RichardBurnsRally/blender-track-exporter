@@ -15,11 +15,14 @@ In the Shader Editor, the **Add** menu has an **RBR Nodes** submenu:
   Object Block, Reflection Object, Water Object, Super Bowl, Interactive Object
   Visual or Clipping Plane. Each type has its own inputs.
 - **RBR Tint Set** — routes a different input per tint set (**Morning**,
-  **Noon**, **Evening**, **Overcast**). You can use this at any level, for
-  textures, colours or values, because tint sets are entirely separate stages.
-  Every tint set you export needs its input connected.
+  **Noon**, **Evening**, **Overcast**), for colours and values (such as the
+  vertex colour) and a Geom Block's **Shadow Texture**, because tint sets are
+  entirely separate stages. Every tint set you export needs its input
+  connected.
 - **RBR Texture** — the texture node for the shader's texture inputs (diffuse
-  and specular). Also holds [physical material maps](./physical-materials.md).
+  and specular). Its **Texture** output carries the texture's colour and alpha
+  together, so each texture is one link. Also holds
+  [physical material maps](./physical-materials.md).
 - **UV Velocity** — scrolls a texture's UVs over time for UV animation. Put it
   between a UV Map (or Attribute) node and an RBR Texture's **UV** input and set
   **UV Velocity**; leave that socket unconnected. Exported for Geom Block,

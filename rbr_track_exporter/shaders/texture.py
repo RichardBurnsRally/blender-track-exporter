@@ -151,8 +151,13 @@ FALLBACK_CONDITIONS = (
     "wet_worn",
 )
 
-RBR_TEXTURE_COLOR_OUTPUT: str = "RBR Texture Color"
-RBR_TEXTURE_ALPHA_OUTPUT: str = "RBR Texture Alpha"
+# The texture node's one output: a bundle of the texture's colour and alpha,
+# and Present, which reads 1 wherever a texture is connected and 0 (the
+# bundle's fallback) where nothing is.
+RBR_TEXTURE_OUTPUT: str = "Texture"
+TEXTURE_BUNDLE_COLOR: str = "Color"
+TEXTURE_BUNDLE_ALPHA: str = "Alpha"
+TEXTURE_BUNDLE_PRESENT: str = "Present"
 
 
 def create_sockets(node_tree: bpy.types.NodeTree) -> None:
@@ -168,10 +173,7 @@ def create_sockets(node_tree: bpy.types.NodeTree) -> None:
         )
         flag.description = description
     node_tree.interface.new_socket(
-        RBR_TEXTURE_COLOR_OUTPUT, in_out="OUTPUT", socket_type="NodeSocketColor"
-    )
-    node_tree.interface.new_socket(
-        RBR_TEXTURE_ALPHA_OUTPUT, in_out="OUTPUT", socket_type="NodeSocketFloat"
+        RBR_TEXTURE_OUTPUT, in_out="OUTPUT", socket_type="NodeSocketBundle"
     )
 
 
@@ -247,13 +249,18 @@ def make_nodes_and_links(
     convert_out = linear_to_srgb(node_tree, "sRGBConverter")
     # The connection of the image to the converter and the alpha to the format
     # alpha chain is done in 'link_texture_for_tree'
+    bundle = new_node(node_tree.nodes, bpy.types.NodeCombineBundle)
+    bundle.bundle_items.new("RGBA", TEXTURE_BUNDLE_COLOR)
+    bundle.bundle_items.new("FLOAT", TEXTURE_BUNDLE_ALPHA)
+    bundle.bundle_items.new("FLOAT", TEXTURE_BUNDLE_PRESENT)
+    socket(bundle.inputs, TEXTURE_BUNDLE_PRESENT).default_value = 1.0
+    node_tree.links.new(socket(bundle.inputs, TEXTURE_BUNDLE_COLOR), convert_out)
     node_tree.links.new(
-        socket(group_output(node_tree).inputs, RBR_TEXTURE_COLOR_OUTPUT),
-        convert_out,
+        socket(bundle.inputs, TEXTURE_BUNDLE_ALPHA), format_alpha(node_tree)
     )
     node_tree.links.new(
-        socket(group_output(node_tree).inputs, RBR_TEXTURE_ALPHA_OUTPUT),
-        format_alpha(node_tree),
+        socket(group_output(node_tree).inputs, RBR_TEXTURE_OUTPUT),
+        socket(bundle.outputs, "Bundle"),
     )
 
 
@@ -596,10 +603,8 @@ class ShaderNodeRBRTexture(bpy.types.ShaderNodeCustomGroup):
 
     def address_target(self) -> bool:
         """Whether this texture feeds an RBR shader node of a type whose game
-        material applies the address modes. Walks forward through reroutes
-        and tint set nodes."""
+        material applies the address modes. Walks forward through reroutes."""
         from .shader_node import ShaderNodeRBR
-        from .tint_set import ShaderNodeRBRTintSet
 
         pending = list(self.outputs)
         seen: Set[str] = set()
@@ -610,7 +615,7 @@ class ShaderNodeRBRTexture(bpy.types.ShaderNodeCustomGroup):
                 if isinstance(node, ShaderNodeRBR):
                     if node.mesh_type in TEXTURE_ADDRESS_MESH_TYPES:
                         return True
-                elif isinstance(node, (bpy.types.NodeReroute, ShaderNodeRBRTintSet)):
+                elif isinstance(node, bpy.types.NodeReroute):
                     if node.name not in seen:
                         seen.add(node.name)
                         pending.extend(node.outputs)

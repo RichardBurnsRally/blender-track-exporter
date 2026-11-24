@@ -44,6 +44,7 @@ SOCKET_TYPES = {
     "VALUE": "NodeSocketFloat",
     "VECTOR": "NodeSocketVector",
     "BOOLEAN": "NodeSocketBool",
+    "BUNDLE": "NodeSocketBundle",
 }
 
 
@@ -344,16 +345,13 @@ def build_material(mesh_type):
     uv.uv_map = "uv-1"
     inputs = [s for s in shader.inputs if s.enabled]
     for i, s in enumerate(inputs):
-        if s.type == "RGBA" and "Texture" in s.name and "Shadow" not in s.name:
+        if s.type == "BUNDLE":
             texture = tree.nodes.new("ShaderNodeRBRTexture")
             texture.node_tree = setup_texture_node_tree(
                 bpy.context, f"{mesh_type}-{i}", False
             )
             tree.links.new(uv.outputs[0], texture.inputs["UV"])
             tree.links.new(texture.outputs[0], s)
-            alpha = shader.inputs.get(f"{s.name} Alpha")
-            if alpha is not None:
-                tree.links.new(texture.outputs[1], alpha)
         elif s.type == "RGBA" and "Shadow" not in s.name:
             attribute = tree.nodes.new("ShaderNodeAttribute")
             attribute.attribute_name = "colour"

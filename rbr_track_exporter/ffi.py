@@ -27,9 +27,7 @@ from .shaders.shader_node import (
     SHADER_GB_SPECULAR_STRENGTH,
     SHADER_GB_SPECULAR_TEXTURE,
     SHADER_GB_TEXTURE_1,
-    SHADER_GB_TEXTURE_1_ALPHA,
     SHADER_GB_TEXTURE_2,
-    SHADER_GB_TEXTURE_2_ALPHA,
     SHADER_OB_ALPHA,
     SHADER_OB_COLOR,
     SHADER_OB_OUTPUT_ALPHA,
@@ -37,7 +35,6 @@ from .shaders.shader_node import (
     SHADER_OB_OUTPUT_DISPLACEMENT,
     SHADER_OB_OUTPUT_SURFACE,
     SHADER_OB_TEXTURE_1,
-    SHADER_OB_TEXTURE_1_ALPHA,
     SHADER_OB_SWAY_AMP,
     SHADER_OB_SWAY_FREQ,
     SHADER_OB_SWAY_PHASE,
@@ -52,8 +49,7 @@ from .shaders.shader_node import (  # noqa: F401
     SHADER_WO_SOCKETS,
 )
 from .shaders.texture import (  # noqa: F401
-    RBR_TEXTURE_ALPHA_OUTPUT,
-    RBR_TEXTURE_COLOR_OUTPUT,
+    RBR_TEXTURE_OUTPUT,
     ShaderNodeRBRTexture,
     ShaderNodeRBRTextureInternal,
     get_texture_address,
@@ -434,19 +430,17 @@ def setup_geom_block_node_tree(
     if texture_1 is not None:
         uv = attr("uv-1")
         image = tex(texture_1, uv, texture_1_velocity)
-        link(image, "RBR Texture Color", rbr_shader, SHADER_GB_TEXTURE_1)
-        link(image, "RBR Texture Alpha", rbr_shader, SHADER_GB_TEXTURE_1_ALPHA)
+        link(image, RBR_TEXTURE_OUTPUT, rbr_shader, SHADER_GB_TEXTURE_1)
     # texture 2
     if texture_2 is not None:
         uv = attr("uv-2")
         image = tex(texture_2, uv, texture_2_velocity)
-        link(image, "RBR Texture Color", rbr_shader, SHADER_GB_TEXTURE_2)
-        link(image, "RBR Texture Alpha", rbr_shader, SHADER_GB_TEXTURE_2_ALPHA)
+        link(image, RBR_TEXTURE_OUTPUT, rbr_shader, SHADER_GB_TEXTURE_2)
     # specular
     if specular_texture is not None:
         uv = attr("specular-uv")
         image = tex(specular_texture, uv, specular_velocity)
-        link(image, "RBR Texture Color", rbr_shader, SHADER_GB_SPECULAR_TEXTURE)
+        link(image, RBR_TEXTURE_OUTPUT, rbr_shader, SHADER_GB_SPECULAR_TEXTURE)
         strength = attr("specular-strength")
         link(strength, "Factor", rbr_shader, SHADER_GB_SPECULAR_STRENGTH)
     # shadow
@@ -535,8 +529,7 @@ def setup_object_block_node_tree(
     # texture 1
     uv = attr("uv-1")
     image = tex(texture, uv)
-    link(image, "RBR Texture Color", rbr_shader, SHADER_OB_TEXTURE_1)
-    link(image, "RBR Texture Alpha", rbr_shader, SHADER_OB_TEXTURE_1_ALPHA)
+    link(image, RBR_TEXTURE_OUTPUT, rbr_shader, SHADER_OB_TEXTURE_1)
     # sway
     freq = attr("sway-freq")
     link(freq, "Factor", rbr_shader, SHADER_OB_SWAY_FREQ)
@@ -655,12 +648,10 @@ def setup_colmesh_node_tree(
         texture_2_tree = texture_1_tree
     if texture_1_tree is not None:
         image = tex(texture_1_tree, attr("uv-1"))
-        link(image, "RBR Texture Color", rbr_shader, SHADER_GB_TEXTURE_1)
-        link(image, "RBR Texture Alpha", rbr_shader, SHADER_GB_TEXTURE_1_ALPHA)
+        link(image, RBR_TEXTURE_OUTPUT, rbr_shader, SHADER_GB_TEXTURE_1)
     if texture_2_tree is not None:
         image = tex(texture_2_tree, attr("uv-2"))
-        link(image, "RBR Texture Color", rbr_shader, SHADER_GB_TEXTURE_2)
-        link(image, "RBR Texture Alpha", rbr_shader, SHADER_GB_TEXTURE_2_ALPHA)
+        link(image, RBR_TEXTURE_OUTPUT, rbr_shader, SHADER_GB_TEXTURE_2)
     link(attr("blending"), "Factor", rbr_shader, SHADER_GB_BLEND)
     link(attr("shading"), "Factor", rbr_shader, SHADER_GB_COLLISION_SHADING)
 
@@ -749,17 +740,15 @@ def setup_object_data_node_tree(
     # texture 1
     if texture_1 is not None:
         image = tex(texture_1, "uv-1", texture_1_velocity)
-        link(image, "RBR Texture Color", rbr_shader, sockets.texture_1())
-        link(image, "RBR Texture Alpha", rbr_shader, sockets.texture_1_alpha())
+        link(image, RBR_TEXTURE_OUTPUT, rbr_shader, sockets.texture_1())
     # texture 2
     if texture_2 is not None:
         image = tex(texture_2, "uv-2", texture_2_velocity)
-        link(image, "RBR Texture Color", rbr_shader, sockets.texture_2())
-        link(image, "RBR Texture Alpha", rbr_shader, sockets.texture_2_alpha())
+        link(image, RBR_TEXTURE_OUTPUT, rbr_shader, sockets.texture_2())
     # specular
     if specular_texture is not None:
         image = tex(specular_texture, "specular-uv", specular_velocity)
-        link(image, "RBR Texture Color", rbr_shader, sockets.specular_texture())
+        link(image, RBR_TEXTURE_OUTPUT, rbr_shader, sockets.specular_texture())
         strength = attr("specular-strength")
         link(strength, "Factor", rbr_shader, sockets.specular_strength())
 
@@ -992,34 +981,17 @@ def reify_uv_velocity(uv: Upstream, tint_set: str) -> UVVelocity:
 
 
 def reify_rbr_texture(
-    color_input: bpy.types.NodeSocket,
-    alpha_input: Optional[bpy.types.NodeSocket],
+    texture_input: bpy.types.NodeSocket,
     path: GroupPath,
     tint_set: str,
 ) -> Optional[Texture]:
-    texture = linked(color_input, path, tint_set)
+    texture = linked(texture_input, path, tint_set)
     if texture is None:
         return None
     texture_node = texture.node
     ref = node_ref(texture_node, texture.path)
     if not isinstance(texture_node, ShaderNodeRBRTexture):
-        raise ReifyMaterialError("Texture node must be an RBR texture node", ref)
-    if texture.socket.name != RBR_TEXTURE_COLOR_OUTPUT:
-        raise ReifyMaterialError(
-            "Texture color channel must be connected to the color socket", ref
-        )
-    if alpha_input is not None:
-        alpha = linked(alpha_input, path, tint_set)
-        if alpha is None:
-            raise ReifyMaterialError("Alpha socket must be connected", ref)
-        if (alpha.node, alpha.path) != (texture_node, texture.path):
-            raise ReifyMaterialError(
-                "Both color and alpha channels must come from the same texture", ref
-            )
-        if alpha.socket.name != RBR_TEXTURE_ALPHA_OUTPUT:
-            raise ReifyMaterialError(
-                "Texture alpha channel must be connected to the alpha socket", ref
-            )
+        raise ReifyMaterialError("Texture inputs take an RBR Texture node", ref)
     uv = linked(socket(texture_node.inputs, "UV"), texture.path, tint_set)
     if uv is None:
         raise ReifyMaterialError("Texture node must have a UV input", ref)
@@ -1174,18 +1146,12 @@ def reify_object_data_material(
     def input(name: str) -> bpy.types.NodeSocket:
         return socket(shader_node.inputs, name)
 
-    texture_1 = reify_rbr_texture(
-        input(sockets.texture_1()), input(sockets.texture_1_alpha()), path, tint_set
-    )
-    texture_2 = reify_rbr_texture(
-        input(sockets.texture_2()), input(sockets.texture_2_alpha()), path, tint_set
-    )
+    texture_1 = reify_rbr_texture(input(sockets.texture_1()), path, tint_set)
+    texture_2 = reify_rbr_texture(input(sockets.texture_2()), path, tint_set)
     specular = None
     specular_strength: Union[Attribute, List[float], float] = 1.0
     if sockets.has_specular:
-        specular = reify_rbr_texture(
-            input(sockets.specular_texture()), None, path, tint_set
-        )
+        specular = reify_rbr_texture(input(sockets.specular_texture()), path, tint_set)
         specular_strength = reify_attribute_or_float(
             input(sockets.specular_strength()), path, tint_set
         )
@@ -1312,9 +1278,7 @@ def reify_shader(
     elif mesh_type is RBRMeshMaterialType.GEOM_BLOCK:
         is_collision = shader_node.is_geom_block_collision
         is_invisible = is_collision and shader_node.is_geom_block_invisible
-        texture_1 = reify_rbr_texture(
-            input(SHADER_GB_TEXTURE_1), input(SHADER_GB_TEXTURE_1_ALPHA), path, tint_set
-        )
+        texture_1 = reify_rbr_texture(input(SHADER_GB_TEXTURE_1), path, tint_set)
         if texture_1 is None:
             raise ReifyMaterialError(
                 "Missing texture 1 input to RBR shader node",
@@ -1322,14 +1286,9 @@ def reify_shader(
             )
         return GeomBlockMaterial(
             texture_1=texture_1,
-            texture_2=reify_rbr_texture(
-                input(SHADER_GB_TEXTURE_2),
-                input(SHADER_GB_TEXTURE_2_ALPHA),
-                path,
-                tint_set,
-            ),
+            texture_2=reify_rbr_texture(input(SHADER_GB_TEXTURE_2), path, tint_set),
             texture_specular=reify_rbr_texture(
-                input(SHADER_GB_SPECULAR_TEXTURE), None, path, tint_set
+                input(SHADER_GB_SPECULAR_TEXTURE), path, tint_set
             ),
             texture_shadow=reify_shadow_image(
                 input(SHADER_GB_SHADOW_TEXTURE), path, tint_set
@@ -1347,9 +1306,7 @@ def reify_shader(
             is_invisible=is_invisible,
         )
     elif mesh_type is RBRMeshMaterialType.OBJECT_BLOCK:
-        texture = reify_rbr_texture(
-            input(SHADER_OB_TEXTURE_1), input(SHADER_OB_TEXTURE_1_ALPHA), path, tint_set
-        )
+        texture = reify_rbr_texture(input(SHADER_OB_TEXTURE_1), path, tint_set)
         if texture is None:
             raise ReifyMaterialError(
                 "Missing texture input to RBR object block shader node",

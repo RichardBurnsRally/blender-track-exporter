@@ -446,37 +446,31 @@ def vector_math_float(
     return narrow(socket(add.outputs, "Value"), bpy.types.NodeSocketFloat)
 
 
-def float_sentinel(
+def float_select(
     node_tree: bpy.types.NodeTree,
-    sentinel_value: float,
-    sentinel_input: bpy.types.NodeSocket,
-    disconnected: Union[bpy.types.NodeSocket, float],
-    connected: Union[bpy.types.NodeSocket, float],
+    factor: Union[bpy.types.NodeSocket, float],
+    if_0: Union[bpy.types.NodeSocket, float],
+    if_1: Union[bpy.types.NodeSocket, float],
 ) -> bpy.types.NodeSocketFloat:
-    is_disconnected = make_math_node(
-        node_tree, "COMPARE", sentinel_input, sentinel_value, 0.5
-    )
+    """if_0 where factor is 0, if_1 where it's 1."""
     mix = new_node(node_tree.nodes, bpy.types.ShaderNodeMix)
     mix.data_type = "FLOAT"
-    magic_link(node_tree, is_disconnected, socket(mix.inputs, "Factor"))
-    magic_link(node_tree, connected, socket(mix.inputs, "A"))
-    magic_link(node_tree, disconnected, socket(mix.inputs, "B"))
+    magic_link(node_tree, factor, socket(mix.inputs, "Factor"))
+    magic_link(node_tree, if_0, socket(mix.inputs, "A"))
+    magic_link(node_tree, if_1, socket(mix.inputs, "B"))
     return narrow(socket(mix.outputs, "Result"), bpy.types.NodeSocketFloat)
 
 
-def rgb_sentinel(
+def rgb_select(
     node_tree: bpy.types.NodeTree,
-    sentinel_value: float,
-    sentinel_input: bpy.types.NodeSocket,
-    disconnected: Union[bpy.types.NodeSocket, Sequence[float]],
-    connected: Union[bpy.types.NodeSocket, Sequence[float]],
+    factor: Union[bpy.types.NodeSocket, float],
+    if_0: Union[bpy.types.NodeSocket, Sequence[float]],
+    if_1: Union[bpy.types.NodeSocket, Sequence[float]],
 ) -> bpy.types.NodeSocketColor:
-    is_disconnected = make_math_node(
-        node_tree, "COMPARE", sentinel_input, sentinel_value, 0.5
-    )
+    """if_0 where factor is 0, if_1 where it's 1."""
     mix = new_node(node_tree.nodes, bpy.types.ShaderNodeMix)
     mix.data_type = "RGBA"
-    magic_link(node_tree, is_disconnected, socket(mix.inputs, "Factor"))
-    magic_link(node_tree, connected, socket(mix.inputs, "A"))
-    magic_link(node_tree, disconnected, socket(mix.inputs, "B"))
+    magic_link(node_tree, factor, socket(mix.inputs, "Factor"))
+    magic_link(node_tree, if_0, socket(mix.inputs, "A"))
+    magic_link(node_tree, if_1, socket(mix.inputs, "B"))
     return narrow(socket(mix.outputs, "Result"), bpy.types.NodeSocketColor)

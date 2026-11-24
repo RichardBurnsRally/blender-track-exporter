@@ -4,6 +4,11 @@ from ..blender_utils import narrow, new_node, socket
 from typing import Optional, Tuple
 
 from .shader_node import ShaderNodeRBR
+from .texture import (
+    TEXTURE_BUNDLE_ALPHA,
+    TEXTURE_BUNDLE_COLOR,
+    TEXTURE_BUNDLE_PRESENT,
+)
 from ..types import RBRMeshMaterialType
 
 
@@ -58,10 +63,6 @@ def setup_fence_material_node_tree(
     rbr_shader = narrow(node_tree.nodes.new("ShaderNodeRBR"), ShaderNodeRBR)
     rbr_shader.name = "RBR Shader"
     rbr_shader.mesh_type = RBRMeshMaterialType.INTERACTIVE_OBJECT_VISUAL.name
-    # Socket_3
-    socket(rbr_shader.inputs, "Texture 2").default_value = (1.0, 1.0, 1.0, 1.0)
-    # Socket_4
-    socket(rbr_shader.inputs, "Texture 2 Alpha").default_value = -100.0
     # Socket_7
     socket(rbr_shader.inputs, "Blend").default_value = 1.0
 
@@ -105,14 +106,22 @@ def setup_fence_material_node_tree(
         node_tree.links.new(
             socket(mapping.outputs, "Vector"), socket(image_texture.inputs, "Vector")
         )
-    # gamma.Color -> rbr_shader.Texture 1
+    # gamma.Color, image_texture.Alpha -> texture bundle -> rbr_shader.Texture 1
+    bundle = new_node(node_tree.nodes, bpy.types.NodeCombineBundle)
+    bundle.location = (374.0, 800.0)
+    bundle.bundle_items.new("RGBA", TEXTURE_BUNDLE_COLOR)
+    bundle.bundle_items.new("FLOAT", TEXTURE_BUNDLE_ALPHA)
+    bundle.bundle_items.new("FLOAT", TEXTURE_BUNDLE_PRESENT)
+    socket(bundle.inputs, TEXTURE_BUNDLE_PRESENT).default_value = 1.0
     node_tree.links.new(
-        socket(gamma.outputs, "Color"), socket(rbr_shader.inputs, "Texture 1")
+        socket(gamma.outputs, "Color"), socket(bundle.inputs, TEXTURE_BUNDLE_COLOR)
     )
-    # image_texture.Alpha -> rbr_shader.Texture 1 Alpha
     node_tree.links.new(
         socket(image_texture.outputs, "Alpha"),
-        socket(rbr_shader.inputs, "Texture 1 Alpha"),
+        socket(bundle.inputs, TEXTURE_BUNDLE_ALPHA),
+    )
+    node_tree.links.new(
+        socket(bundle.outputs, "Bundle"), socket(rbr_shader.inputs, "Texture 1")
     )
     # attribute_001.Color -> rbr_shader.Color
     node_tree.links.new(
