@@ -62,7 +62,6 @@ from .shaders.texture import (  # noqa: F401
     passes_through_dds,
     used_image_nodes,
 )
-from .shaders.tint_set import ShaderNodeRBRTintSet
 from .shaders.uv_velocity import ShaderNodeUVVelocity
 from .types import (
     ConditionIdentifier,
@@ -73,6 +72,14 @@ from .types import (
     by_condition,
 )
 from .preferences import RBRAddonPreferences
+from .reify import (
+    GroupPath,
+    ReifyMaterialError,
+    Upstream,
+    follow,
+    linked,
+    node_ref,
+)
 from . import __package__ as base_package
 from .rbr_blender_track_io import (
     UVMap,
@@ -159,12 +166,22 @@ def make_dds_image(name: str, data: bytes) -> bpy.types.Image:
 def material_using_node_group(
     node_group: bpy.types.NodeTree,
 ) -> Optional[Tuple[bpy.types.Material, str]]:
+    def find(tree: bpy.types.NodeTree, path: GroupPath) -> Optional[str]:
+        for node in tree.nodes:
+            if isinstance(node, ShaderNodeRBRTexture) and node.node_tree == node_group:
+                return node_ref(node, path)
+            if isinstance(node, bpy.types.ShaderNodeGroup) and node.node_tree:
+                found = find(node.node_tree, path + (node,))
+                if found is not None:
+                    return found
+        return None
+
     for material in bpy.data.materials:
         if material.node_tree is None:
             continue
-        for node in material.node_tree.nodes:
-            if isinstance(node, ShaderNodeRBRTexture) and node.node_tree == node_group:
-                return material, node.name
+        ref = find(material.node_tree, ())
+        if ref is not None:
+            return material, ref
     return None
 
 
@@ -922,84 +939,48 @@ ReifiedMaterial = Union[
 ]
 
 
-def walk_link(link: bpy.types.NodeLink, tint_set: str) -> bpy.types.NodeLink:
-    while True:
-        node = link.from_node
-        if isinstance(node, bpy.types.NodeReroute):
-            links = node.inputs[0].links
-            if len(links) == 0:
-                raise ReifyMaterialError("Reroute has nothing connected", node.name)
-            link = links[0]
-            continue
-        if isinstance(node, ShaderNodeRBRTintSet):
-
-            def go(tint_set_input: str) -> bpy.types.NodeLink:
-                links = socket(node.inputs, tint_set_input).links
-                if len(links) == 0:
-                    raise ReifyMaterialError(
-                        f"Missing node input for tint set '{tint_set_input}'", node.name
-                    )
-                return links[0]
-
-            inputs = {"M": "Morning", "N": "Noon", "E": "Evening", "O": "Overcast"}
-            if tint_set in inputs:
-                link = go(inputs[tint_set])
-                continue
-        return link
-
-
-def reify_uv_map(uv_link: bpy.types.NodeLink) -> Optional[UVMap]:
-    if isinstance(uv_link.from_node, bpy.types.ShaderNodeUVMap):
-        uv_map_node = uv_link.from_node
-        if uv_map_node.from_instancer:
+def reify_uv_map(uv: Upstream) -> Optional[UVMap]:
+    ref = node_ref(uv.node, uv.path)
+    if isinstance(uv.node, bpy.types.ShaderNodeUVMap):
+        if uv.node.from_instancer:
+            raise ReifyMaterialError("UV map must not be from instancer", ref)
+        return UVMap(layer_name=uv.node.uv_map)
+    elif isinstance(uv.node, bpy.types.ShaderNodeAttribute):
+        if uv.node.attribute_type != "GEOMETRY":
+            raise ReifyMaterialError("UV map attribute type must be 'Geometry'", ref)
+        if uv.socket.name != "Vector":
             raise ReifyMaterialError(
-                "UV map must not be from instancer", uv_map_node.name
+                "Attribute node UV map must be connected from the Vector socket", ref
             )
-        return UVMap(layer_name=uv_map_node.uv_map)
-    elif isinstance(uv_link.from_node, bpy.types.ShaderNodeAttribute):
-        attribute_node = uv_link.from_node
-        if attribute_node.attribute_type != "GEOMETRY":
-            raise ReifyMaterialError(
-                "UV map attribute type must be 'Geometry'", attribute_node.name
-            )
-        if uv_link.from_socket.name != "Vector":
-            raise ReifyMaterialError(
-                "Attribute node UV map must be connected from the Vector socket",
-                attribute_node.name,
-            )
-        return UVMap(layer_name=attribute_node.attribute_name)
+        return UVMap(layer_name=uv.node.attribute_name)
     else:
         return None
 
 
-def reify_uv_velocity(uv_link: bpy.types.NodeLink) -> UVVelocity:
-    if isinstance(uv_link.from_node, ShaderNodeUVVelocity):
-        velocity_node = uv_link.from_node
-        uv_socket = socket(velocity_node.inputs, "UV")
-        if len(uv_socket.links) == 0:
-            raise ReifyMaterialError("UV input must be connected", velocity_node.name)
-        velocity_socket = socket(velocity_node.inputs, "UV Velocity")
-        if len(velocity_socket.links) > 0:
-            raise ReifyMaterialError(
-                "UV velocity input must not be connected", velocity_node.name
-            )
-        velocity = [
-            velocity_socket.default_value[0],
-            velocity_socket.default_value[1],
-        ]
-        uv_map = reify_uv_map(uv_socket.links[0])
+def reify_uv_velocity(uv: Upstream, tint_set: str) -> UVVelocity:
+    ref = node_ref(uv.node, uv.path)
+    if isinstance(uv.node, ShaderNodeUVVelocity):
+        inner = linked(socket(uv.node.inputs, "UV"), uv.path, tint_set)
+        if inner is None:
+            raise ReifyMaterialError("UV input must be connected", ref)
+        velocity = follow(socket(uv.node.inputs, "UV Velocity"), uv.path, tint_set)
+        if isinstance(velocity, Upstream):
+            raise ReifyMaterialError("UV velocity input must not be connected", ref)
+        uv_map = reify_uv_map(inner)
         if uv_map is None:
             raise ReifyMaterialError(
-                "UV input must be an Attribute or UV Velocity node", velocity_node.name
+                "UV input must be an Attribute or UV Velocity node", ref
             )
-        return UVVelocity(uv_map=uv_map, velocity=velocity)
+        return UVVelocity(
+            uv_map=uv_map,
+            velocity=[velocity.default_value[0], velocity.default_value[1]],
+        )
     else:
-        velocity = [0, 0]
-        uv_map = reify_uv_map(uv_link)
+        uv_map = reify_uv_map(uv)
         if uv_map is None:
             raise ReifyMaterialError(
                 "UV input must be one of a UV Map, Attribute, or UV Velocity node",
-                uv_link.from_node.name,
+                ref,
             )
         return UVVelocity(uv_map=uv_map, velocity=[0, 0])
 
@@ -1007,51 +988,45 @@ def reify_uv_velocity(uv_link: bpy.types.NodeLink) -> UVVelocity:
 def reify_rbr_texture(
     color_input: bpy.types.NodeSocket,
     alpha_input: Optional[bpy.types.NodeSocket],
+    path: GroupPath,
     tint_set: str,
 ) -> Optional[Texture]:
-    if len(color_input.links) == 0:
+    texture = linked(color_input, path, tint_set)
+    if texture is None:
         return None
-    texture_link = walk_link(color_input.links[0], tint_set)
-    texture_node = texture_link.from_node
+    texture_node = texture.node
+    ref = node_ref(texture_node, texture.path)
     if not isinstance(texture_node, ShaderNodeRBRTexture):
+        raise ReifyMaterialError("Texture node must be an RBR texture node", ref)
+    if texture.socket.name != RBR_TEXTURE_COLOR_OUTPUT:
         raise ReifyMaterialError(
-            "Texture node must be an RBR texture node", texture_node.name
-        )
-    if texture_link.from_socket.name != RBR_TEXTURE_COLOR_OUTPUT:
-        raise ReifyMaterialError(
-            "Texture color channel must be connected to the color socket",
-            texture_node.name,
+            "Texture color channel must be connected to the color socket", ref
         )
     if alpha_input is not None:
-        if len(alpha_input.links) == 0:
+        alpha = linked(alpha_input, path, tint_set)
+        if alpha is None:
+            raise ReifyMaterialError("Alpha socket must be connected", ref)
+        if (alpha.node, alpha.path) != (texture_node, texture.path):
             raise ReifyMaterialError(
-                "Alpha socket must be connected", texture_node.name
+                "Both color and alpha channels must come from the same texture", ref
             )
-        alpha_link = walk_link(alpha_input.links[0], tint_set)
-        alpha_node = alpha_link.from_node
-        if alpha_node != texture_node:
+        if alpha.socket.name != RBR_TEXTURE_ALPHA_OUTPUT:
             raise ReifyMaterialError(
-                "Both color and alpha channels must come from the same texture",
-                texture_node.name,
+                "Texture alpha channel must be connected to the alpha socket", ref
             )
-        if alpha_link.from_socket.name != RBR_TEXTURE_ALPHA_OUTPUT:
-            raise ReifyMaterialError(
-                "Texture alpha channel must be connected to the alpha socket",
-                texture_node.name,
-            )
-    if len(socket(texture_node.inputs, "UV").links) == 0:
-        raise ReifyMaterialError("Texture node must have a UV input", texture_node.name)
-    uv_link = socket(texture_node.inputs, "UV").links[0]
-    uv_map = reify_uv_velocity(uv_link)
+    uv = linked(socket(texture_node.inputs, "UV"), texture.path, tint_set)
+    if uv is None:
+        raise ReifyMaterialError("Texture node must have a UV input", ref)
     return Texture(
         node_tree=texture_node.node_tree,
-        uv_map=uv_map,
+        uv_map=reify_uv_velocity(uv, tint_set),
     )
 
 
 def reify_texture_address(
     texture_1_input: bpy.types.NodeSocket,
     texture_2_input: Optional[bpy.types.NodeSocket],
+    path: GroupPath,
     tint_set: str,
 ) -> Tuple[bool, bool, bool, bool]:
     """The material's address flags, from its texture node(s). The game has
@@ -1061,17 +1036,16 @@ def reify_texture_address(
     def address(
         color_input: bpy.types.NodeSocket,
     ) -> Optional[Tuple[Tuple[bool, bool, bool, bool], str]]:
-        if len(color_input.links) == 0:
+        texture = linked(color_input, path, tint_set)
+        if texture is None or not isinstance(texture.node, ShaderNodeRBRTexture):
             return None
-        node = walk_link(color_input.links[0], tint_set).from_node
-        if not isinstance(node, ShaderNodeRBRTexture):
-            return None
+        ref = node_ref(texture.node, texture.path)
         try:
-            return (get_texture_address(node), node.name)
+            return (get_texture_address(texture.node), ref)
         except KeyError:
             raise ReifyMaterialError(
                 "Texture node is missing its address sockets; refresh the RBR shaders",
-                node.name,
+                ref,
             )
 
     first = address(texture_1_input)
@@ -1087,35 +1061,32 @@ def reify_texture_address(
 
 def reify_shadow_image(
     shadow_input: bpy.types.NodeSocket,
+    path: GroupPath,
     tint_set: str,
 ) -> Optional[ShadowImage]:
-    if len(shadow_input.links) == 0:
+    shadow = linked(shadow_input, path, tint_set)
+    if shadow is None:
         return None
-    shadow_link = walk_link(shadow_input.links[0], tint_set)
-    shadow_node = shadow_link.from_node
+    shadow_node = shadow.node
+    ref = node_ref(shadow_node, shadow.path)
     if not isinstance(shadow_node, bpy.types.ShaderNodeTexImage):
         raise ReifyMaterialError(
-            "Shadow texture node must be an image texture node", shadow_node.name
+            "Shadow texture node must be an image texture node", ref
         )
-    if shadow_link.from_socket.name != "Color":
+    if shadow.socket.name != "Color":
         raise ReifyMaterialError(
-            "Shadow texture node must be connected from the color channel",
-            shadow_node.name,
+            "Shadow texture node must be connected from the color channel", ref
         )
     if shadow_node.image is None:
-        raise ReifyMaterialError(
-            "Shadow texture node must have an image selected", shadow_node.name
-        )
-    if len(socket(shadow_node.inputs, "Vector").links) == 0:
-        raise ReifyMaterialError(
-            "Shadow texture node must have a UV input", shadow_node.name
-        )
-    uv_link = socket(shadow_node.inputs, "Vector").links[0]
-    uv_map = reify_uv_map(uv_link)
+        raise ReifyMaterialError("Shadow texture node must have an image selected", ref)
+    uv = linked(socket(shadow_node.inputs, "Vector"), shadow.path, tint_set)
+    if uv is None:
+        raise ReifyMaterialError("Shadow texture node must have a UV input", ref)
+    uv_map = reify_uv_map(uv)
     if uv_map is None:
         raise ReifyMaterialError(
             "Shadow texture node UV input must be either a UV map node or an attribute node",
-            shadow_node.name,
+            ref,
         )
     return ShadowImage(
         image=shadow_node.image,
@@ -1123,74 +1094,64 @@ def reify_shadow_image(
     )
 
 
-def reify_attribute_link(link: bpy.types.NodeLink) -> Attribute:
-    node = link.from_node
+def reify_attribute_link(attribute: Upstream) -> Attribute:
+    node = attribute.node
+    ref = node_ref(node, attribute.path)
     if not isinstance(node, bpy.types.ShaderNodeAttribute):
-        raise ReifyMaterialError(
-            "Attribute link must come from an attribute node", node.name
-        )
+        raise ReifyMaterialError("Attribute link must come from an attribute node", ref)
     if node.attribute_type != "GEOMETRY":
-        raise ReifyMaterialError("Attribute type must be 'Geometry'", node.name)
-    if link.from_socket.name == "Color":
+        raise ReifyMaterialError("Attribute type must be 'Geometry'", ref)
+    if attribute.socket.name == "Color":
         output = AttributeOutput.Color
-    elif link.from_socket.name == "Vector":
+    elif attribute.socket.name == "Vector":
         output = AttributeOutput.Vector
-    elif link.from_socket.name == "Factor":
+    elif attribute.socket.name == "Factor":
         output = AttributeOutput.Factor
-    elif link.from_socket.name == "Alpha":
+    elif attribute.socket.name == "Alpha":
         output = AttributeOutput.Alpha
     else:
         raise NotImplementedError(
-            f"Missing attribute link type: {link.from_socket.name}"
+            f"Missing attribute link type: {attribute.socket.name}"
         )
     return Attribute(name=node.attribute_name, output=output)
 
 
 def reify_attribute_or_color(
     color_input: bpy.types.NodeSocket,
+    path: GroupPath,
     tint_set: str,
 ) -> Union[Attribute, List[float]]:
-    if len(color_input.links) == 0:
-        return color_input.default_value
-    color_link = walk_link(color_input.links[0], tint_set)
-    color_node = color_link.from_node
-    if isinstance(color_node, bpy.types.ShaderNodeAttribute):
-        return reify_attribute_link(color_link)
-    elif isinstance(color_node, bpy.types.ShaderNodeRGB):
-        return socket(color_node.outputs, "Color").default_value
+    source = follow(color_input, path, tint_set)
+    if not isinstance(source, Upstream):
+        return source.default_value
+    if isinstance(source.node, bpy.types.ShaderNodeAttribute):
+        return reify_attribute_link(source)
+    elif isinstance(source.node, bpy.types.ShaderNodeRGB):
+        return socket(source.node.outputs, "Color").default_value
     else:
         raise ReifyMaterialError(
             "Color input must be an attribute node, RGB input node, or disconnected",
-            color_node.name,
+            node_ref(source.node, source.path),
         )
 
 
 def reify_attribute_or_float(
     float_input: bpy.types.NodeSocket,
+    path: GroupPath,
     tint_set: str,
 ) -> Union[Attribute, List[float]]:
-    if len(float_input.links) == 0:
-        return float_input.default_value
-    float_link = walk_link(float_input.links[0], tint_set)
-    float_node = float_link.from_node
-    if isinstance(float_node, bpy.types.ShaderNodeAttribute):
-        return reify_attribute_link(float_link)
-    elif isinstance(float_node, bpy.types.ShaderNodeValue):
-        return socket(float_node.outputs, "Value").default_value
+    source = follow(float_input, path, tint_set)
+    if not isinstance(source, Upstream):
+        return source.default_value
+    if isinstance(source.node, bpy.types.ShaderNodeAttribute):
+        return reify_attribute_link(source)
+    elif isinstance(source.node, bpy.types.ShaderNodeValue):
+        return socket(source.node.outputs, "Value").default_value
     else:
         raise ReifyMaterialError(
             "Value input must be an attribute node, value input node, or disconnected",
-            float_node.name,
+            node_ref(source.node, source.path),
         )
-
-
-class ReifyMaterialError(Exception):
-    def __init__(self, message: str, node_name: Optional[str]):
-        self.message = message
-        self.node_name = node_name
-
-    def __str__(self) -> str:
-        return f"{self.message}"
 
 
 _ObjectDataMaterial = TypeVar("_ObjectDataMaterial")
@@ -1199,34 +1160,30 @@ _ObjectDataMaterial = TypeVar("_ObjectDataMaterial")
 def reify_object_data_material(
     material: bpy.types.Material,
     shader_node: ShaderNodeRBR,
+    path: GroupPath,
     sockets: ObjectDataSockets,
     tint_set: str,
     material_class: Callable[..., _ObjectDataMaterial],
 ) -> _ObjectDataMaterial:
+    def input(name: str) -> bpy.types.NodeSocket:
+        return socket(shader_node.inputs, name)
+
     texture_1 = reify_rbr_texture(
-        socket(shader_node.inputs, sockets.texture_1()),
-        socket(shader_node.inputs, sockets.texture_1_alpha()),
-        tint_set,
+        input(sockets.texture_1()), input(sockets.texture_1_alpha()), path, tint_set
     )
     texture_2 = reify_rbr_texture(
-        socket(shader_node.inputs, sockets.texture_2()),
-        socket(shader_node.inputs, sockets.texture_2_alpha()),
-        tint_set,
+        input(sockets.texture_2()), input(sockets.texture_2_alpha()), path, tint_set
     )
     specular = None
     specular_strength: Union[Attribute, List[float], float] = 1.0
     if sockets.has_specular:
         specular = reify_rbr_texture(
-            socket(shader_node.inputs, sockets.specular_texture()),
-            None,
-            tint_set,
+            input(sockets.specular_texture()), None, path, tint_set
         )
         specular_strength = reify_attribute_or_float(
-            socket(shader_node.inputs, sockets.specular_strength()), tint_set
+            input(sockets.specular_strength()), path, tint_set
         )
-    color = reify_attribute_or_color(
-        socket(shader_node.inputs, sockets.color()), tint_set
-    )
+    color = reify_attribute_or_color(input(sockets.color()), path, tint_set)
     return material_class(
         texture_1,
         texture_2,
@@ -1235,9 +1192,7 @@ def reify_object_data_material(
         color,
         not material.use_backface_culling,
         *reify_texture_address(
-            socket(shader_node.inputs, sockets.texture_1()),
-            socket(shader_node.inputs, sockets.texture_2()),
-            tint_set,
+            input(sockets.texture_1()), input(sockets.texture_2()), path, tint_set
         ),
     )
 
@@ -1246,30 +1201,32 @@ def reify_material(
     material: bpy.types.Material, tint_set: str
 ) -> Optional[ReifiedMaterial]:
     """Throws for invalid RBR materials, returns None for none-RBR materials"""
-    # Can't do this yet it inlines the custom node groups
-    # inline_shader_nodes = material.inline_shader_nodes()
     nt = material.node_tree
     if nt is None:
         return None
     output = nt.get_output_node("EEVEE")
     if output is None:
         return None
-    if len(socket(output.inputs, "Surface").links) == 0:
+    shader = linked(socket(output.inputs, "Surface"), (), tint_set)
+    if shader is None or not isinstance(shader.node, ShaderNodeRBR):
         return None
-    shader_link = walk_link(socket(output.inputs, "Surface").links[0], tint_set)
-    shader_node = shader_link.from_node
-    if not isinstance(shader_node, ShaderNodeRBR):
-        return None
+    shader_node = shader.node
+    path = shader.path
+
+    def input(name: str) -> bpy.types.NodeSocket:
+        return socket(shader_node.inputs, name)
 
     mesh_type = RBRMeshMaterialType[shader_node.mesh_type]
     if mesh_type is RBRMeshMaterialType.CLIPPING_PLANE:
-        return ClippingPlaneMaterial(
-            bool(socket(shader_node.inputs, SHADER_CP_BACKFACE_CULL).default_value)
-        )
+        backface_cull = follow(input(SHADER_CP_BACKFACE_CULL), path, tint_set)
+        if isinstance(backface_cull, Upstream):
+            backface_cull = input(SHADER_CP_BACKFACE_CULL)
+        return ClippingPlaneMaterial(bool(backface_cull.default_value))
     elif mesh_type is RBRMeshMaterialType.INTERACTIVE_OBJECT_VISUAL:
         return reify_object_data_material(
             material,
             shader_node,
+            path,
             SHADER_IO_SOCKETS,
             tint_set,
             InteractiveObjectMaterial,
@@ -1278,88 +1235,64 @@ def reify_material(
         is_collision = shader_node.is_geom_block_collision
         is_invisible = is_collision and shader_node.is_geom_block_invisible
         texture_1 = reify_rbr_texture(
-            socket(shader_node.inputs, SHADER_GB_TEXTURE_1),
-            socket(shader_node.inputs, SHADER_GB_TEXTURE_1_ALPHA),
-            tint_set,
+            input(SHADER_GB_TEXTURE_1), input(SHADER_GB_TEXTURE_1_ALPHA), path, tint_set
         )
         if texture_1 is None:
             raise ReifyMaterialError(
-                "Missing texture 1 input to RBR shader node", shader_node.name
+                "Missing texture 1 input to RBR shader node",
+                node_ref(shader_node, path),
             )
-        texture_2 = reify_rbr_texture(
-            color_input=socket(shader_node.inputs, SHADER_GB_TEXTURE_2),
-            alpha_input=socket(shader_node.inputs, SHADER_GB_TEXTURE_2_ALPHA),
-            tint_set=tint_set,
-        )
-        texture_specular = reify_rbr_texture(
-            color_input=socket(shader_node.inputs, SHADER_GB_SPECULAR_TEXTURE),
-            alpha_input=None,
-            tint_set=tint_set,
-        )
-        texture_shadow = reify_shadow_image(
-            shadow_input=socket(shader_node.inputs, SHADER_GB_SHADOW_TEXTURE),
-            tint_set=tint_set,
-        )
-        color = reify_attribute_or_color(
-            color_input=socket(shader_node.inputs, SHADER_GB_COLOR),
-            tint_set=tint_set,
-        )
-        blend = reify_attribute_or_float(
-            float_input=socket(shader_node.inputs, SHADER_GB_BLEND),
-            tint_set=tint_set,
-        )
-        specular_strength = reify_attribute_or_float(
-            float_input=socket(shader_node.inputs, SHADER_GB_SPECULAR_STRENGTH),
-            tint_set=tint_set,
-        )
-        collision_shading = reify_attribute_or_float(
-            float_input=socket(shader_node.inputs, SHADER_GB_COLLISION_SHADING),
-            tint_set=tint_set,
-        )
         return GeomBlockMaterial(
             texture_1=texture_1,
-            texture_2=texture_2,
-            texture_specular=texture_specular,
-            texture_shadow=texture_shadow,
-            color=color,
-            blend=blend,
-            specular_strength=specular_strength,
-            collision_shading=collision_shading,
+            texture_2=reify_rbr_texture(
+                input(SHADER_GB_TEXTURE_2),
+                input(SHADER_GB_TEXTURE_2_ALPHA),
+                path,
+                tint_set,
+            ),
+            texture_specular=reify_rbr_texture(
+                input(SHADER_GB_SPECULAR_TEXTURE), None, path, tint_set
+            ),
+            texture_shadow=reify_shadow_image(
+                input(SHADER_GB_SHADOW_TEXTURE), path, tint_set
+            ),
+            color=reify_attribute_or_color(input(SHADER_GB_COLOR), path, tint_set),
+            blend=reify_attribute_or_float(input(SHADER_GB_BLEND), path, tint_set),
+            specular_strength=reify_attribute_or_float(
+                input(SHADER_GB_SPECULAR_STRENGTH), path, tint_set
+            ),
+            collision_shading=reify_attribute_or_float(
+                input(SHADER_GB_COLLISION_SHADING), path, tint_set
+            ),
             distance=shader_node.geom_block_type,
             is_collision=is_collision,
             is_invisible=is_invisible,
         )
     elif mesh_type is RBRMeshMaterialType.OBJECT_BLOCK:
         texture = reify_rbr_texture(
-            socket(shader_node.inputs, SHADER_OB_TEXTURE_1),
-            socket(shader_node.inputs, SHADER_OB_TEXTURE_1_ALPHA),
-            tint_set,
+            input(SHADER_OB_TEXTURE_1), input(SHADER_OB_TEXTURE_1_ALPHA), path, tint_set
         )
         if texture is None:
             raise ReifyMaterialError(
                 "Missing texture input to RBR object block shader node",
-                shader_node.name,
+                node_ref(shader_node, path),
             )
         [u_clamp, v_clamp, u_mirror, v_mirror] = reify_texture_address(
-            socket(shader_node.inputs, SHADER_OB_TEXTURE_1), None, tint_set
+            input(SHADER_OB_TEXTURE_1), None, path, tint_set
         )
         return ObjectBlockMaterial(
             texture=texture,
             object_block_type=shader_node.object_block_type,
-            color=reify_attribute_or_color(
-                socket(shader_node.inputs, SHADER_OB_COLOR), tint_set
-            ),
-            alpha=reify_attribute_or_float(
-                socket(shader_node.inputs, SHADER_OB_ALPHA), tint_set
-            ),
+            color=reify_attribute_or_color(input(SHADER_OB_COLOR), path, tint_set),
+            alpha=reify_attribute_or_float(input(SHADER_OB_ALPHA), path, tint_set),
             sway_frequency=reify_attribute_or_float(
-                socket(shader_node.inputs, SHADER_OB_SWAY_FREQ), tint_set
+                input(SHADER_OB_SWAY_FREQ), path, tint_set
             ),
             sway_amplitude=reify_attribute_or_float(
-                socket(shader_node.inputs, SHADER_OB_SWAY_AMP), tint_set
+                input(SHADER_OB_SWAY_AMP), path, tint_set
             ),
             sway_phase=reify_attribute_or_float(
-                socket(shader_node.inputs, SHADER_OB_SWAY_PHASE), tint_set
+                input(SHADER_OB_SWAY_PHASE), path, tint_set
             ),
             no_culling=not material.use_backface_culling,
             u_clamp=u_clamp,
@@ -1369,15 +1302,25 @@ def reify_material(
         )
     elif mesh_type is RBRMeshMaterialType.REFLECTION_OBJECT:
         return reify_object_data_material(
-            material, shader_node, SHADER_RO_SOCKETS, tint_set, ReflectionObjectMaterial
+            material,
+            shader_node,
+            path,
+            SHADER_RO_SOCKETS,
+            tint_set,
+            ReflectionObjectMaterial,
         )
     elif mesh_type is RBRMeshMaterialType.SUPER_BOWL:
         return reify_object_data_material(
-            material, shader_node, SHADER_SB_SOCKETS, tint_set, SuperBowlMaterial
+            material, shader_node, path, SHADER_SB_SOCKETS, tint_set, SuperBowlMaterial
         )
     elif mesh_type is RBRMeshMaterialType.WATER_OBJECT:
         return reify_object_data_material(
-            material, shader_node, SHADER_WO_SOCKETS, tint_set, WaterObjectMaterial
+            material,
+            shader_node,
+            path,
+            SHADER_WO_SOCKETS,
+            tint_set,
+            WaterObjectMaterial,
         )
     else:
         raise NotImplementedError(mesh_type)

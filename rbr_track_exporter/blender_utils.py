@@ -44,6 +44,11 @@ def socket_nth(
     return [s for s in sockets if s.enabled and s.name == target.name].index(target)
 
 
+# Joins the names of the group nodes leading to a node, and the node's own
+# name, into one export message node name.
+NODE_PATH_SEPARATOR = "\x1f"
+
+
 def group_input(node_tree: bpy.types.NodeTree) -> bpy.types.NodeGroupInput:
     """Found by type: default node names are translated."""
     for node in node_tree.nodes:
