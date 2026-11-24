@@ -5,7 +5,7 @@ mypy
 numpy
 # Headless blender for scripts/smoke.sh; keep in the blender_manifest.toml
 # version range.
-bpy~=5.2.0
+bpy~=5.3.0
 # Type stubs for bpy/mathutils/etc. Stub-only (bpy-stubs, ...), so they sit
 # alongside the real bpy without colliding; scripts/ensure-venv.sh patches
 # their broken collection MRO. The smoke test still uses the real bpy.
