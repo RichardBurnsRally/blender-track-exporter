@@ -30,7 +30,8 @@ In the Shader Editor, the **Add** menu has an **RBR Nodes** submenu:
 
 Colour and value inputs on the RBR Shader take an Attribute node (type
 **Geometry**), an RGB or Value node, or nothing (the socket value is used).
-Reroutes are followed. A Geom Block's **Shadow Texture** takes a plain Image
+Reroutes and node groups are followed, so shading can live in a group shared
+between materials. A Geom Block's **Shadow Texture** takes a plain Image
 Texture node.
 
 ### Geometry type options
@@ -95,3 +96,35 @@ Visual materials are separate from the **physical** materials that determine
 grip, sound and the particles the car throws up. Those are painted per texture
 with the material-map editor — see
 [Physical Materials (Collision)](./physical-materials.md).
+
+## Switching shaders per instance
+
+One material can use a different RBR Shader per instance or object, for
+example Super Bowl for distant scattered trees and Object Block for near ones.
+Put an **Index Switch** node (type **Shader**) between the Material Output and
+the RBR Shader nodes, one RBR Shader per input. The viewport shows each
+instance with the shader it picks, and the export does the same.
+
+The switch's **Index** comes from an **Attribute** node's **Factor** or
+**Alpha** output, rounded down: 0 picks the first input, 1 the second, and
+so on. An index outside the inputs is an export error. Leave **Index**
+unconnected to always pick one input.
+
+The Attribute node's type decides where the value comes from, in this order:
+
+- **Instancer** — an attribute stored on the instances by geometry nodes
+  (**Store Named Attribute** on the **Instance** domain; with nested
+  instancing, the innermost level that has it), then a custom property on the
+  instancer object, then a custom property on the object or its mesh, then 0.
+- **Object** — a custom property on the object or its mesh, then 0.
+
+For example, to make distant trees Super Bowl: in the scatter's geometry
+nodes, store a Boolean `superbowl` on the Instance domain from a distance
+comparison. Then in the tree material, connect an Instancer Attribute node
+named `superbowl` to the Index Switch, with the Object Block shader on input 0
+and the Super Bowl shader on input 1.
+
+The switch must come straight after the Material Output (reroutes and node
+groups aside). A plain **Switch** or **Menu Switch** in front of RBR shaders is
+an export error, as are particle instances and, for now, attributes stored by
+objects inside an instanced collection.
