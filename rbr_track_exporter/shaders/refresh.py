@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Set
+from typing import Callable, Dict, List, Optional, Set
 
 import bpy
 from ..blender_utils import socket, socket_nth
@@ -78,8 +78,19 @@ def texture_nodes() -> List[texture.ShaderNodeRBRTexture]:
     return nodes
 
 
-def refresh_all_rbr_shaders(context: bpy.types.Context) -> None:
+# Rewrites a material's recorded links to suit the rebuilt nodes.
+LinkRewrite = Callable[[bpy.types.Material, List[SavedLink]], List[SavedLink]]
+
+
+def refresh_all_rbr_shaders(
+    context: bpy.types.Context, rewrite_links: Optional[LinkRewrite] = None
+) -> None:
     links = pop_links()
+    if rewrite_links is not None:
+        links = {
+            name: rewrite_links(bpy.data.materials[name], saved)
+            for name, saved in links.items()
+        }
     # Rebuilding the texture tree interface recreates the instance sockets,
     # so carry the per-material address flags across.
     addresses = {}
