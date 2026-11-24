@@ -4,7 +4,9 @@
 
 The compiled core for your platform/Blender version isn't loaded. Check that:
 
-- You're on **Blender 5.2.x** (a release supports exactly one minor version).
+- You're on the Blender version your release supports (see
+  [Requirements](./installation.md#requirements)): each release supports
+  exactly one minor version.
 - You're on a supported platform (Windows x64, macOS arm64, Linux x64).
 - You installed the release zip for your platform (which bundles the core),
   not just the Python sources.

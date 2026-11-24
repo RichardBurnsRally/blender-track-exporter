@@ -5,9 +5,10 @@
 - **Blender** — the exact version depends on the extension version (see below).
 - A copy of **RallySimFans RBR** to export your stages into.
 
-| Extension version | Blender version |
-| ----------------- | --------------- |
-| 1.0.x             | 5.2.x           |
+| Extension version     | Blender version |
+| --------------------- | --------------- |
+| 1.0.0-rc.4 and later  | 5.3.x           |
+| 1.0.0-rc.1 – rc.3     | 5.2.x           |
 
 Releases are built for Windows x64, macOS arm64 and Linux x64.
 
