@@ -10,7 +10,8 @@
 | 1.0.0-rc.4 and later  | 5.3.x           |
 | 1.0.0-rc.1 – rc.3     | 5.2.x           |
 
-Releases are built for Windows x64, macOS arm64 and Linux x64.
+Releases are built for Windows x64, macOS arm64 and Linux x64. If your platform
+isn't supported, raise it on the [Discord](https://discord.gg/VMySc2fPCH).
 
 ## Installing the extension
 
