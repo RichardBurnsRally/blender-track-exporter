@@ -8,3 +8,4 @@ cd "$(dirname "$0")/.."
 python3 scripts/smoke.py
 python3 scripts/node_trees.py
 python3 scripts/reify_tests.py
+python3 scripts/instance_attributes_tests.py
