@@ -2,7 +2,7 @@ import os
 from typing import Any, Callable, List, Set, Optional, Tuple
 
 import bpy
-from .blender_utils import narrow
+from .blender_utils import NODE_PATH_SEPARATOR, narrow
 from .types import OperatorReturn
 
 from .properties.scene import RBRSceneSettings, RBRExportMessage
@@ -140,16 +140,29 @@ def jump_to_material(
         return
     if bad_material.node_tree is None:
         return
-    bad_node = bad_material.node_tree.nodes.get(node_name)
+    *group_names, name = node_name.split(NODE_PATH_SEPARATOR)
+    tree = bad_material.node_tree
+    groups: List[bpy.types.ShaderNodeGroup] = []
+    for group_name in group_names:
+        group = tree.nodes.get(group_name)
+        if not isinstance(group, bpy.types.ShaderNodeGroup) or group.node_tree is None:
+            return
+        groups.append(group)
+        tree = group.node_tree
+    bad_node = tree.nodes.get(name)
     if bad_node is None:
         return
-    for node in bad_material.node_tree.nodes:
+    for node in tree.nodes:
         node.select = node == bad_node
-    frame_node_tree_selection(bad_material.node_tree)
+    frame_node_tree_selection(bad_material.node_tree, groups)
 
 
-def frame_node_tree_selection(node_tree: bpy.types.NodeTree) -> None:
-    """Frame the selected nodes in every shader editor showing node_tree.
+def frame_node_tree_selection(
+    node_tree: bpy.types.NodeTree,
+    groups: List[bpy.types.ShaderNodeGroup],
+) -> None:
+    """Frame the selected nodes in every shader editor showing node_tree,
+    after entering groups (outermost first).
 
     Shader editors only pick up a change of active object/material when they
     next refresh, so framing straight after jump_to_object would run against
@@ -174,8 +187,14 @@ def frame_node_tree_selection(node_tree: bpy.types.NodeTree) -> None:
                 if area.type != "NODE_EDITOR" or area.ui_type != "ShaderNodeTree":
                     continue
                 space = area.spaces.active
-                if getattr(space, "edit_tree", None) != node_tree:
+                if not isinstance(space, bpy.types.SpaceNodeEditor):
                     continue
+                if space.node_tree != node_tree:
+                    continue
+                while len(space.path) > 1:
+                    space.path.pop()
+                for group in groups:
+                    space.path.append(group.node_tree, node=group)
                 for region in area.regions:
                     if region.type != "WINDOW":
                         continue
