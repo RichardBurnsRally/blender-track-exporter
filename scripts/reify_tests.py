@@ -6,6 +6,7 @@ reified materials are its types), so they're skipped when it isn't built.
 """
 
 import os
+import re
 import sys
 import traceback
 from typing import Callable, Dict, List
@@ -523,6 +524,189 @@ def material_tests() -> None:
         ), error
 
 
+def branch_group(mesh_type):
+    """A group whose output is a fully fed RBR shader of mesh_type."""
+    material = build_material(mesh_type)
+    tree = material.node_tree
+    group = bpy.data.node_groups.new(f"branch-{mesh_type}", "ShaderNodeTree")
+    group.interface.new_socket(
+        "Shader", in_out="OUTPUT", socket_type="NodeSocketShader"
+    )
+    mapping = {}
+    for n in tree.nodes:
+        if n.bl_idname == "ShaderNodeOutputMaterial":
+            continue
+        copy = group.nodes.new(n.bl_idname)
+        for prop in n.bl_rna.properties:
+            if prop.is_readonly or prop.identifier in {
+                "name",
+                "location",
+                "parent",
+                "select",
+            }:
+                continue
+            try:
+                setattr(copy, prop.identifier, getattr(n, prop.identifier))
+            except (AttributeError, TypeError, ValueError):
+                pass
+        for i, sock in enumerate(n.inputs):
+            if hasattr(sock, "default_value") and not sock.is_linked:
+                try:
+                    copy.inputs[i].default_value = sock.default_value
+                except (AttributeError, TypeError, ValueError):
+                    pass
+        for i, sock in enumerate(n.outputs):
+            if hasattr(sock, "default_value"):
+                copy.outputs[i].default_value = sock.default_value
+        mapping[n.name] = copy
+    group_out = group.nodes.new("NodeGroupOutput")
+    for link in tree.links:
+        if link.to_node.bl_idname == "ShaderNodeOutputMaterial":
+            group.links.new(
+                mapping[link.from_node.name].outputs[link.from_socket.identifier],
+                group_out.inputs[0],
+            )
+            continue
+        group.links.new(
+            mapping[link.from_node.name].outputs[link.from_socket.identifier],
+            mapping[link.to_node.name].inputs[link.to_socket.identifier],
+        )
+    bpy.data.materials.remove(material)
+    return group
+
+
+def switched_material(mesh_types, index_from="INSTANCER", output="Factor"):
+    """A material whose surface is an Index Switch over RBR shaders of
+    mesh_types, its index from an Attribute node (unlinked if None)."""
+    material, tree = new_tree()
+    output_node = tree.nodes.new("ShaderNodeOutputMaterial")
+    switch = tree.nodes.new("GeometryNodeIndexSwitch")
+    switch.data_type = "SHADER"
+    while len([i for i in switch.inputs[1:] if i.type == "SHADER"]) < len(mesh_types):
+        switch.index_switch_items.new()
+    items = [i for i in switch.inputs[1:] if i.type == "SHADER"]
+    for mesh_type, item in zip(mesh_types, items):
+        tree.links.new(group_node(tree, branch_group(mesh_type)).outputs[0], item)
+    if index_from is not None:
+        attribute = tree.nodes.new("ShaderNodeAttribute")
+        attribute.attribute_type = index_from
+        attribute.attribute_name = "branch"
+        tree.links.new(attribute.outputs[output], switch.inputs[0])
+    tree.links.new(switch.outputs[0], output_node.inputs["Surface"])
+    return material, switch
+
+
+def reify_error(material, tint_set="M"):
+    try:
+        ffi.reify_material(material, tint_set)
+    except ReifyMaterialError as e:
+        return e.message
+    return None
+
+
+def switch_tests() -> None:
+    @test
+    def switch_reifies_each_branch():
+        material, _ = switched_material(["GEOM_BLOCK", "SUPER_BOWL"])
+        result = ffi.reify_material(material, "M")
+        text = repr(result)
+        assert text.startswith("MaterialSwitch {"), text
+        assert 'attribute: "branch"' in text and "from_instancer: true" in text, text
+        assert "alpha: false" in text, text
+        assert text.index("GeomBlockMaterial") < text.index("SuperBowl"), text
+        # each branch reifies as the same shader would on its own (texture
+        # trees built separately differ only in their numeric name suffix)
+        unsuffixed = lambda t: re.sub(r'(RBRTextureV0\.[A-Z_]+-\d+)\.\d+"', r'\1"', t)
+        for mesh_type in ["GEOM_BLOCK", "SUPER_BOWL"]:
+            flat = reified(build_material(mesh_type))["M"]
+            body = flat.split("{", 1)[1].rsplit("}", 1)[0].strip()
+            assert unsuffixed(body) in unsuffixed(text), (mesh_type, body, text)
+
+    @test
+    def switch_by_object_attribute_alpha():
+        material, _ = switched_material(
+            ["GEOM_BLOCK", "OBJECT_BLOCK"], "OBJECT", "Alpha"
+        )
+        text = repr(ffi.reify_material(material, "M"))
+        assert "from_instancer: false" in text and "alpha: true" in text, text
+
+    @test
+    def unlinked_index_picks_a_fixed_branch():
+        material, switch = switched_material(["GEOM_BLOCK", "SUPER_BOWL"], None)
+        switch.inputs[0].default_value = 1
+        assert repr(ffi.reify_material(material, "M")).startswith(
+            "SuperBowl"
+        ), "branch 1"
+        switch.inputs[0].default_value = 2
+        assert "out of range" in (reify_error(material) or ""), reify_error(material)
+
+    @test
+    def plain_switch_errors():
+        material, tree = new_tree()
+        out = tree.nodes.new("ShaderNodeOutputMaterial")
+        switch = tree.nodes.new("GeometryNodeSwitch")
+        switch.input_type = "SHADER"
+        g = group_node(tree, branch_group("GEOM_BLOCK"))
+        tree.links.new(g.outputs[0], switch.inputs["True"])
+        tree.links.new(switch.outputs[0], out.inputs["Surface"])
+        assert "Index Switch" in (reify_error(material) or ""), reify_error(material)
+
+    @test
+    def index_must_come_from_object_or_instancer_attribute():
+        material, _ = switched_material(["GEOM_BLOCK", "SUPER_BOWL"], "GEOMETRY")
+        assert "Object or Instancer" in (reify_error(material) or ""), reify_error(
+            material
+        )
+        material, switch = switched_material(["GEOM_BLOCK", "SUPER_BOWL"], None)
+        value = material.node_tree.nodes.new("ShaderNodeValue")
+        material.node_tree.links.new(value.outputs[0], switch.inputs[0])
+        assert "Object or Instancer" in (reify_error(material) or ""), reify_error(
+            material
+        )
+
+    @test
+    def index_must_be_factor_or_alpha():
+        material, _ = switched_material(
+            ["GEOM_BLOCK", "SUPER_BOWL"], "INSTANCER", "Vector"
+        )
+        assert "Factor or Alpha" in (reify_error(material) or ""), reify_error(material)
+
+    @test
+    def every_branch_must_be_an_rbr_shader():
+        material, switch = switched_material(["GEOM_BLOCK", "SUPER_BOWL"])
+        tree = material.node_tree
+        item = [i for i in switch.inputs[1:] if i.type == "SHADER"][1]
+        tree.links.remove(item.links[0])
+        bsdf = tree.nodes.new("ShaderNodeBsdfPrincipled")
+        tree.links.new(bsdf.outputs[0], item)
+        assert "RBR shader" in (reify_error(material) or ""), reify_error(material)
+
+    @test
+    def switch_inside_a_group_is_found():
+        material, switch = switched_material(["GEOM_BLOCK", "SUPER_BOWL"])
+        tree = material.node_tree
+        output = by_type(tree, "ShaderNodeOutputMaterial")[0]
+        group, gin, gout = new_group("wrap", [("In", "SHADER")], [("Out", "SHADER")])
+        group.links.new(gin.outputs[0], gout.inputs[0])
+        g = group_node(tree, group)
+        tree.links.new(switch.outputs[0], g.inputs[0])
+        tree.links.new(g.outputs[0], output.inputs["Surface"])
+        assert repr(ffi.reify_material(material, "M")).startswith(
+            "MaterialSwitch"
+        ), "wrapped"
+
+    @test
+    def non_rbr_switch_is_not_an_rbr_material():
+        material, tree = new_tree()
+        out = tree.nodes.new("ShaderNodeOutputMaterial")
+        switch = tree.nodes.new("GeometryNodeIndexSwitch")
+        switch.data_type = "SHADER"
+        bsdf = tree.nodes.new("ShaderNodeBsdfPrincipled")
+        tree.links.new(bsdf.outputs[0], switch.inputs[1])
+        tree.links.new(switch.outputs[0], out.inputs["Surface"])
+        assert ffi.reify_material(material, "M") is None
+
+
 try:
     from rbr_track_exporter import ffi  # noqa: E402
 except ImportError:
@@ -530,6 +714,7 @@ except ImportError:
     print("reify tests: native core not built, skipping the material tests")
 else:
     material_tests()
+    switch_tests()
 
 failures = 0
 for t in TESTS:

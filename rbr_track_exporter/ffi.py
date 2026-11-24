@@ -72,6 +72,11 @@ from .types import (
     by_condition,
 )
 from .preferences import RBRAddonPreferences
+from .instance_attributes import (
+    RGBA,
+    InstanceAttributes,
+    UnsupportedInstanceAttribute,
+)
 from .reify import (
     GroupPath,
     ReifyMaterialError,
@@ -91,6 +96,7 @@ from .rbr_blender_track_io import (
     Texture,
     ShadowImage,
     ClippingPlaneMaterial,
+    MaterialSwitch,
     InteractiveObjectMaterial,
     GeomBlockMaterial,
     ObjectBlockMaterial,
@@ -1199,7 +1205,7 @@ def reify_object_data_material(
 
 def reify_material(
     material: bpy.types.Material, tint_set: str
-) -> Optional[ReifiedMaterial]:
+) -> Optional[Union[ReifiedMaterial, MaterialSwitch]]:
     """Throws for invalid RBR materials, returns None for none-RBR materials"""
     nt = material.node_tree
     if nt is None:
@@ -1207,12 +1213,84 @@ def reify_material(
     output = nt.get_output_node("EEVEE")
     if output is None:
         return None
-    shader = linked(socket(output.inputs, "Surface"), (), tint_set)
-    if shader is None or not isinstance(shader.node, ShaderNodeRBR):
+    surface = linked(socket(output.inputs, "Surface"), (), tint_set)
+    if surface is None:
         return None
-    shader_node = shader.node
-    path = shader.path
+    if isinstance(surface.node, bpy.types.GeometryNodeIndexSwitch):
+        return reify_switch(material, surface, tint_set)
+    if isinstance(
+        surface.node, (bpy.types.GeometryNodeSwitch, bpy.types.GeometryNodeMenuSwitch)
+    ) and any(
+        isinstance(
+            getattr(linked(i, surface.path, tint_set), "node", None), ShaderNodeRBR
+        )
+        for i in surface.node.inputs
+        if i.type == "SHADER"
+    ):
+        raise ReifyMaterialError(
+            "Use an Index Switch to choose between RBR shader nodes",
+            node_ref(surface.node, surface.path),
+        )
+    if not isinstance(surface.node, ShaderNodeRBR):
+        return None
+    return reify_shader(material, surface.node, surface.path, tint_set)
 
+
+def reify_switch(
+    material: bpy.types.Material, switch: Upstream, tint_set: str
+) -> Optional[Union[ReifiedMaterial, MaterialSwitch]]:
+    """An Index Switch choosing between RBR shader nodes, by an Object or
+    Instancer Attribute node's Fac or Alpha, or by a fixed index."""
+    node = switch.node
+    ref = node_ref(node, switch.path)
+    items = [i for i in node.inputs[1:] if i.type == "SHADER"]
+    shaders = [linked(i, switch.path, tint_set) for i in items]
+    rbr = [s is not None and isinstance(s.node, ShaderNodeRBR) for s in shaders]
+    if not any(rbr):
+        return None
+    if not all(rbr):
+        raise ReifyMaterialError(
+            "Every Index Switch input must be an RBR shader node", ref
+        )
+    branches = [
+        reify_shader(material, narrow(s.node, ShaderNodeRBR), s.path, tint_set)
+        for s in shaders
+        if s is not None
+    ]
+    index = follow(node.inputs[0], switch.path, tint_set)
+    if not isinstance(index, Upstream):
+        if not 0 <= index.default_value < len(branches):
+            raise ReifyMaterialError(
+                f"Index Switch index {index.default_value} is out of range", ref
+            )
+        return branches[index.default_value]
+    attribute = index.node
+    if not isinstance(attribute, bpy.types.ShaderNodeAttribute) or (
+        attribute.attribute_type not in ("OBJECT", "INSTANCER")
+    ):
+        raise ReifyMaterialError(
+            "Index Switch index must come from an Object or Instancer Attribute node",
+            ref,
+        )
+    if index.socket.name not in ("Factor", "Alpha"):
+        raise ReifyMaterialError(
+            "Index Switch index must come from the Attribute node's Factor or Alpha",
+            node_ref(attribute, index.path),
+        )
+    return MaterialSwitch(
+        attribute.attribute_name,
+        attribute.attribute_type == "INSTANCER",
+        index.socket.name == "Alpha",
+        branches,
+    )
+
+
+def reify_shader(
+    material: bpy.types.Material,
+    shader_node: ShaderNodeRBR,
+    path: GroupPath,
+    tint_set: str,
+) -> ReifiedMaterial:
     def input(name: str) -> bpy.types.NodeSocket:
         return socket(shader_node.inputs, name)
 
@@ -1324,6 +1402,31 @@ def reify_material(
         )
     else:
         raise NotImplementedError(mesh_type)
+
+
+def instance_attributes(names: List[str]) -> InstanceAttributes:
+    return InstanceAttributes(bpy.context.evaluated_depsgraph_get(), names)
+
+
+def instance_attribute_values(
+    attributes: InstanceAttributes,
+    object: bpy.types.Object,
+    instancer: Optional[bpy.types.Object],
+    persistent_id: List[int],
+    from_particles: bool,
+    lookups: List[Tuple[str, bool]],
+) -> Tuple[Optional[List[RGBA]], Optional[str]]:
+    """The value of each (attribute, from instancer) lookup for one instance,
+    or why they can't be looked up."""
+    try:
+        return [
+            attributes.lookup(
+                object, instancer, persistent_id, from_particles, name, from_instancer
+            )
+            for name, from_instancer in lookups
+        ], None
+    except UnsupportedInstanceAttribute as e:
+        return None, str(e)
 
 
 def register_export_message(
