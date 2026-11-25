@@ -186,9 +186,7 @@ UV_VELOCITY_TREE_STEM = ".UVVelocityTreeV0"
 # Old shader socket -> new shader socket, per new mesh type.
 _OBJECT_DATA_SOCKETS = {
     "Diffuse Texture 1": "Texture 1",
-    "Diffuse Texture 1 Alpha": "Texture 1 Alpha",
     "Diffuse Texture 2": "Texture 2",
-    "Diffuse Texture 2 Alpha": "Texture 2 Alpha",
     "Specular Texture": "Specular Texture",
     "Specular Strength": "Specular Strength",
     "Color": "Color",
@@ -197,7 +195,6 @@ SOCKET_MAPS: Dict[str, Dict[str, str]] = {
     "GEOM_BLOCK": {**_OBJECT_DATA_SOCKETS, "Alpha": "Blend"},
     "OBJECT_BLOCK": {
         "Diffuse Texture 1": "Texture",
-        "Diffuse Texture 1 Alpha": "Texture Alpha",
         "Color": "Color",
         "Alpha": "Alpha",
         "Sway Frequency": "Frequency",
@@ -210,13 +207,15 @@ SOCKET_MAPS: Dict[str, Dict[str, str]] = {
     "INTERACTIVE_OBJECT_VISUAL": {**_OBJECT_DATA_SOCKETS, "Alpha": "Blend"},
     "CLIPPING_PLANE": {},
 }
+# Old texture colour socket -> the alpha socket now bundled with it.
+OLD_TEXTURE_ALPHAS = {
+    "Diffuse Texture 1": "Diffuse Texture 1 Alpha",
+    "Diffuse Texture 2": "Diffuse Texture 2 Alpha",
+}
 TEXTURE_SOCKETS = {
     "Texture 1",
-    "Texture 1 Alpha",
     "Texture 2",
-    "Texture 2 Alpha",
     "Texture",
-    "Texture Alpha",
     "Specular Texture",
 }
 

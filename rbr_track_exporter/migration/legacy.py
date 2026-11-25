@@ -15,6 +15,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 import bpy
 
 from . import tables
+from .texture_bundles import combine_texture, invalid_texture_links, rewrite_links
 from ..blender_utils import gnodes_input, narrow
 from ..gnodes.fence import GNODES_FENCE_SUBDIVIDE, GNODES_FENCE_VCOL
 from ..properties.fence import recreate_fence_node_group
@@ -525,7 +526,10 @@ def migrate_textures(context: bpy.types.Context, log: Log) -> None:
     because the scene settings link into it as soon as they change."""
     count = 0
     passthrough = 0
-    links = pop_links()
+    links = {
+        name: rewrite_links(bpy.data.materials[name], saved)
+        for name, saved in pop_links().items()
+    }
     for node_tree in bpy.data.node_groups:
         if node_tree.library is not None or not node_tree.name.startswith(
             ".RBRTextureV0."
@@ -748,6 +752,15 @@ ALLOWED_VALUE_SOURCES = {
 }
 
 
+def _bundled_alphas(socket_map: Dict[str, str]) -> Set[str]:
+    """Old alpha inputs that ride along in their texture's bundle."""
+    return {
+        alpha
+        for color, alpha in tables.OLD_TEXTURE_ALPHAS.items()
+        if color in socket_map
+    }
+
+
 def _upstream(link: bpy.types.NodeLink) -> bpy.types.Node:
     node = link.from_node
     while isinstance(node, bpy.types.NodeReroute) and node.inputs[0].links:
@@ -768,6 +781,7 @@ def rebuild_material(
             return
     old_nodes = [node for node in node_tree.nodes if is_old_rbr_node(node)]
     socket_map = tables.SOCKET_MAPS[mesh_type]
+    bundled_alphas = _bundled_alphas(socket_map)
 
     # Vertex colour nodes become attribute nodes once, shared by every link.
     converted: Dict[str, bpy.types.Node] = {}
@@ -817,6 +831,8 @@ def rebuild_material(
 
         # inputs
         for old_socket in old.inputs:
+            if old_socket.name in bundled_alphas:
+                continue
             new_name = socket_map.get(old_socket.name)
             new_socket = new.inputs.get(new_name) if new_name else None
             if new_socket is None:
@@ -845,13 +861,24 @@ def rebuild_material(
                 ]
             node_tree.links.new(from_socket, new_socket)
             source = _upstream(link)
+            if new_name in tables.TEXTURE_SOCKETS:
+                if source.bl_idname != "ShaderNodeRBRTexture":
+                    alpha_name = tables.OLD_TEXTURE_ALPHAS.get(old_socket.name)
+                    alpha_input = old.inputs.get(alpha_name) if alpha_name else None
+                    alpha = (
+                        alpha_input.links[0].from_socket
+                        if alpha_input is not None and alpha_input.links
+                        else None
+                    )
+                    combine_texture(node_tree, new_socket, from_socket, alpha)
+                    log.manual(
+                        f"material '{material.name}': input '{new_name}' is fed by a {source.bl_idname} "
+                        f"node; the exporter only reads RBR Texture nodes there"
+                    )
+                continue
             if source.bl_idname == "ShaderNodeVertexColor":
                 continue
-            if new_name in tables.TEXTURE_SOCKETS:
-                ok = source.bl_idname == "ShaderNodeRBRTexture"
-            else:
-                ok = source.bl_idname in ALLOWED_VALUE_SOURCES
-            if not ok:
+            if source.bl_idname not in ALLOWED_VALUE_SOURCES:
                 log.manual(
                     f"material '{material.name}': input '{new_name}' is fed by a {source.bl_idname} "
                     f"node; the exporter only reads Attribute, RGB and Value nodes there, bake it to an attribute"
@@ -925,12 +952,17 @@ def _dropped_links(material: bpy.types.Material, mesh_type: str) -> int:
     if material.node_tree is None:
         return 0
     socket_map = tables.SOCKET_MAPS[mesh_type]
+    bundled_alphas = _bundled_alphas(socket_map)
     dropped = 0
     for node in material.node_tree.nodes:
         if not is_old_rbr_node(node):
             continue
         for socket in node.inputs:
-            if socket.links and socket.name not in socket_map:
+            if (
+                socket.links
+                and socket.name not in socket_map
+                and socket.name not in bundled_alphas
+            ):
                 dropped += 1
     return dropped
 
@@ -1300,6 +1332,8 @@ def migrate(context: bpy.types.Context, log: Log) -> None:
     defaults = _socket_defaults()
     refresh_all_rbr_shaders(context)
     _restore_socket_defaults(defaults)
+    for message in invalid_texture_links():
+        log.manual(message)
     recreate_fence_node_group()
     for scene in bpy.data.scenes:
         old_version = (

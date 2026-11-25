@@ -9,7 +9,7 @@ from typing import Dict, List, Optional, Tuple
 
 import bpy
 
-from ..blender_utils import new_node, socket
+from ..blender_utils import narrow, new_node, socket
 from ..shaders.refresh import SavedLink, refresh_all_rbr_shaders
 from ..shaders.shader_node import SHADER_PREFIX, ShaderNodeRBR
 from ..shaders.texture import (
@@ -105,7 +105,9 @@ def _find_bundled(tree: bpy.types.NodeTree) -> List[_Bundled]:
     return found
 
 
-def _rewrite(material: bpy.types.Material, links: List[SavedLink]) -> List[SavedLink]:
+def rewrite_links(
+    material: bpy.types.Material, links: List[SavedLink]
+) -> List[SavedLink]:
     """A texture's colour link becomes its bundle link; its alpha links, and
     links into an RBR Shader's old texture alpha inputs, go."""
     tree = material.node_tree
@@ -125,11 +127,16 @@ def _rewrite(material: bpy.types.Material, links: List[SavedLink]) -> List[Saved
     return out
 
 
-def _combine(tree: bpy.types.NodeTree, bundled: _Bundled) -> None:
-    shader = tree.nodes[bundled.shader]
-    target = socket(shader.inputs, bundled.input)
+def combine_texture(
+    tree: bpy.types.NodeTree,
+    target: bpy.types.NodeSocket,
+    color: bpy.types.NodeSocket,
+    alpha: Optional[bpy.types.NodeSocket],
+) -> None:
+    """Feed target a new Combine Bundle of color and alpha."""
     for link in list(target.links):
         tree.links.remove(link)
+    shader = narrow(target.node, bpy.types.Node)
     combine = new_node(tree.nodes, bpy.types.NodeCombineBundle)
     combine.location = (shader.location.x - 200, shader.location.y + 150)
     combine.bundle_items.new("RGBA", TEXTURE_BUNDLE_COLOR)
@@ -137,18 +144,42 @@ def _combine(tree: bpy.types.NodeTree, bundled: _Bundled) -> None:
     combine.bundle_items.new("FLOAT", TEXTURE_BUNDLE_PRESENT)
     socket(combine.inputs, TEXTURE_BUNDLE_ALPHA).default_value = 1.0
     socket(combine.inputs, TEXTURE_BUNDLE_PRESENT).default_value = 1.0
-    for source, item in [
-        (bundled.color, TEXTURE_BUNDLE_COLOR),
-        (bundled.alpha, TEXTURE_BUNDLE_ALPHA),
-    ]:
-        if source is None:
-            continue
-        node_name, identifier = source
-        output = next(
-            o for o in tree.nodes[node_name].outputs if o.identifier == identifier
-        )
-        tree.links.new(output, socket(combine.inputs, item))
+    tree.links.new(color, socket(combine.inputs, TEXTURE_BUNDLE_COLOR))
+    if alpha is not None:
+        tree.links.new(alpha, socket(combine.inputs, TEXTURE_BUNDLE_ALPHA))
     tree.links.new(socket(combine.outputs, "Bundle"), target)
+
+
+def _output(tree: bpy.types.NodeTree, source: Tuple[str, str]) -> bpy.types.NodeSocket:
+    node_name, identifier = source
+    return next(o for o in tree.nodes[node_name].outputs if o.identifier == identifier)
+
+
+def _combine(tree: bpy.types.NodeTree, bundled: _Bundled) -> None:
+    shader = tree.nodes[bundled.shader]
+    combine_texture(
+        tree,
+        socket(shader.inputs, bundled.input),
+        _output(tree, bundled.color),
+        _output(tree, bundled.alpha) if bundled.alpha is not None else None,
+    )
+
+
+def invalid_texture_links() -> List[str]:
+    """Links from an RBR Texture into something that can't take its bundle."""
+    found = []
+    for material in bpy.data.materials:
+        tree = material.node_tree
+        if tree is None:
+            continue
+        for link in tree.links:
+            if not link.is_valid and isinstance(link.from_node, ShaderNodeRBRTexture):
+                found.append(
+                    f"material '{material.name}': texture "
+                    f"'{link.from_node.name}' fed '{link.to_node.name}', which "
+                    "can't take a texture now; reconnect it"
+                )
+    return found
 
 
 def migrate(context: bpy.types.Context) -> None:
@@ -158,22 +189,13 @@ def migrate(context: bpy.types.Context) -> None:
     for material in bpy.data.materials:
         if material.node_tree is not None and material.library is None:
             bundled[material.name] = _find_bundled(material.node_tree)
-    refresh_all_rbr_shaders(context, _rewrite)
+    refresh_all_rbr_shaders(context, rewrite_links)
     for name, found in bundled.items():
         tree = bpy.data.materials[name].node_tree
         if tree is None:
             continue
         for b in found:
             _combine(tree, b)
-    for material in bpy.data.materials:
-        tree = material.node_tree
-        if tree is None:
-            continue
-        for link in tree.links:
-            if not link.is_valid and isinstance(link.from_node, ShaderNodeRBRTexture):
-                print(
-                    f"RBR Addon: material '{material.name}': texture "
-                    f"'{link.from_node.name}' fed '{link.to_node.name}', which "
-                    "can't take a texture now; reconnect it"
-                )
+    for message in invalid_texture_links():
+        print(f"RBR Addon: {message}")
     print("RBR Addon: migrated textures to bundles")
