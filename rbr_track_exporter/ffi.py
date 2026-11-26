@@ -1156,12 +1156,14 @@ def reify_object_data_material(
             input(sockets.specular_strength()), path, tint_set
         )
     color = reify_attribute_or_color(input(sockets.color()), path, tint_set)
+    alpha = reify_attribute_or_float(input(sockets.alpha_blend()), path, tint_set)
     return material_class(
         texture_1,
         texture_2,
         specular,
         specular_strength,
         color,
+        alpha,
         not material.use_backface_culling,
         *reify_texture_address(
             input(sockets.texture_1()), input(sockets.texture_2()), path, tint_set
