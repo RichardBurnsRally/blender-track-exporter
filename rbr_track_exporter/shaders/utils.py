@@ -247,13 +247,14 @@ def mix_rgb(
     clamp: bool = False,
 ) -> bpy.types.NodeSocketColor:
     """Linear interpolation between two colours according to some factor"""
-    node = new_node(node_tree.nodes, bpy.types.ShaderNodeMixRGB)
+    node = new_node(node_tree.nodes, bpy.types.ShaderNodeMix)
+    node.data_type = "RGBA"
     node.blend_type = blend_type
-    node.use_clamp = clamp
+    node.clamp_result = clamp
     magic_link(node_tree, fac, socket(node.inputs, "Factor"))
-    magic_link(node_tree, a, socket(node.inputs, "Color1"))
-    magic_link(node_tree, b, socket(node.inputs, "Color2"))
-    return narrow(socket(node.outputs, "Color"), bpy.types.NodeSocketColor)
+    magic_link(node_tree, a, socket(node.inputs, "A"))
+    magic_link(node_tree, b, socket(node.inputs, "B"))
+    return narrow(socket(node.outputs, "Result"), bpy.types.NodeSocketColor)
 
 
 # We must clamp unlit to above 0, or cycles baking outputs black regardless of
