@@ -2,6 +2,11 @@
 
 Changes since 1.0.0-rc.5, for the next release.
 
+## Changed
+
+- **Simpler shader internals.** Simplified the internal representation of
+  some custom node types.
+
 ## Fixed
 
 - **Migrating old addon files.** Migrating a file from the old addon failed

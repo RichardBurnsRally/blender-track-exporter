@@ -12,7 +12,7 @@ from ..blender_utils import (
     socket,
 )
 
-from .utils import make_math_node, mix_rgb, rbr_scene_float
+from .utils import rbr_scene_float
 
 TINT_SET_NODE_TREE_NAME: str = ".RBRTintSetTreeV0"
 
@@ -39,24 +39,21 @@ def setup_tint_set_node_tree() -> bpy.types.NodeTree:
     node_tree.interface.new_socket(
         "Color", in_out="OUTPUT", socket_type="NodeSocketColor"
     )
-    # Get user inputs
-    in_morning = socket(group_input(node_tree).outputs, "Morning")
-    in_noon = socket(group_input(node_tree).outputs, "Noon")
-    in_evening = socket(group_input(node_tree).outputs, "Evening")
-    in_overcast = socket(group_input(node_tree).outputs, "Overcast")
-    # Select
-    tint_set_int = rbr_scene_float(node_tree, "active_tint_set_int")
-    is_noon = make_math_node(node_tree, "COMPARE", tint_set_int, 1.0, 0.5)
-    is_evening = make_math_node(node_tree, "COMPARE", tint_set_int, 2.0, 0.5)
-    is_overcast = make_math_node(node_tree, "COMPARE", tint_set_int, 3.0, 0.5)
-    result = in_morning
-    result = mix_rgb(node_tree, fac=is_noon, a=result, b=in_noon)
-    result = mix_rgb(node_tree, fac=is_evening, a=result, b=in_evening)
-    result = mix_rgb(node_tree, fac=is_overcast, a=result, b=in_overcast)
-
+    switch = new_node(node_tree.nodes, bpy.types.GeometryNodeIndexSwitch)
+    switch.data_type = "RGBA"
+    switch.index_switch_items.new()
+    switch.index_switch_items.new()
+    node_tree.links.new(
+        socket(switch.inputs, "Index"),
+        rbr_scene_float(node_tree, "active_tint_set_int"),
+    )
+    for i, name in enumerate(["Morning", "Noon", "Evening", "Overcast"]):
+        node_tree.links.new(
+            socket(switch.inputs, str(i)), socket(group_input(node_tree).outputs, name)
+        )
     node_tree.links.new(
         socket(group_output(node_tree).inputs, "Color"),
-        result,
+        socket(switch.outputs, "Output"),
     )
     return node_tree
 
