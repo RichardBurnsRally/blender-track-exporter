@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from typing import TYPE_CHECKING, Optional, Sequence, Tuple, Union
 
 import bpy
@@ -342,13 +343,7 @@ def vector_exp(
     node_tree: bpy.types.NodeTree,
     vector: bpy.types.NodeSocketVector,
 ) -> bpy.types.NodeSocketVector:
-    separate = new_node(node_tree.nodes, bpy.types.ShaderNodeSeparateXYZ)
-    node_tree.links.new(vector, socket(separate.inputs, "Vector"))
-    combine = new_node(node_tree.nodes, bpy.types.ShaderNodeCombineXYZ)
-    for axis in ["X", "Y", "Z"]:
-        math = make_math_node(node_tree, "EXPONENT", in1=socket(separate.outputs, axis))
-        node_tree.links.new(math, socket(combine.inputs, axis))
-    return narrow(socket(combine.outputs, "Vector"), bpy.types.NodeSocketVector)
+    return vector_math(node_tree, "POWER", (math.e, math.e, math.e), vector)
 
 
 def vector_power(
