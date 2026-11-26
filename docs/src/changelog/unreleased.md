@@ -2,6 +2,12 @@
 
 Changes since 1.0.0-rc.5, for the next release.
 
+## New
+
+- **Undefined material warning.** Export warns about each texture whose
+  material maps leave cells undefined in an exported dry/damp/wet condition,
+  so unpainted cells and unset fallbacks don't go unnoticed.
+
 ## Changed
 
 - **Simpler shader internals.** Simplified the internal representation of
