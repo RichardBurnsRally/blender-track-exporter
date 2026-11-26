@@ -454,12 +454,12 @@ def float_select(
     if_1: Union[bpy.types.NodeSocket, float],
 ) -> bpy.types.NodeSocketFloat:
     """if_0 where factor is 0, if_1 where it's 1."""
-    mix = new_node(node_tree.nodes, bpy.types.ShaderNodeMix)
-    mix.data_type = "FLOAT"
-    magic_link(node_tree, factor, socket(mix.inputs, "Factor"))
-    magic_link(node_tree, if_0, socket(mix.inputs, "A"))
-    magic_link(node_tree, if_1, socket(mix.inputs, "B"))
-    return narrow(socket(mix.outputs, "Result"), bpy.types.NodeSocketFloat)
+    switch = new_node(node_tree.nodes, bpy.types.GeometryNodeSwitch)
+    switch.input_type = "FLOAT"
+    magic_link(node_tree, factor, socket(switch.inputs, "Switch"))
+    magic_link(node_tree, if_0, socket(switch.inputs, "False"))
+    magic_link(node_tree, if_1, socket(switch.inputs, "True"))
+    return narrow(socket(switch.outputs, "Output"), bpy.types.NodeSocketFloat)
 
 
 def rgb_select(
@@ -469,9 +469,9 @@ def rgb_select(
     if_1: Union[bpy.types.NodeSocket, Sequence[float]],
 ) -> bpy.types.NodeSocketColor:
     """if_0 where factor is 0, if_1 where it's 1."""
-    mix = new_node(node_tree.nodes, bpy.types.ShaderNodeMix)
-    mix.data_type = "RGBA"
-    magic_link(node_tree, factor, socket(mix.inputs, "Factor"))
-    magic_link(node_tree, if_0, socket(mix.inputs, "A"))
-    magic_link(node_tree, if_1, socket(mix.inputs, "B"))
-    return narrow(socket(mix.outputs, "Result"), bpy.types.NodeSocketColor)
+    switch = new_node(node_tree.nodes, bpy.types.GeometryNodeSwitch)
+    switch.input_type = "RGBA"
+    magic_link(node_tree, factor, socket(switch.inputs, "Switch"))
+    magic_link(node_tree, if_0, socket(switch.inputs, "False"))
+    magic_link(node_tree, if_1, socket(switch.inputs, "True"))
+    return narrow(socket(switch.outputs, "Output"), bpy.types.NodeSocketColor)
