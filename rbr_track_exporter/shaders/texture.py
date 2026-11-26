@@ -287,22 +287,17 @@ def format_alpha(node_tree: bpy.types.NodeTree) -> bpy.types.NodeSocket:
     mode_node.name = FORMAT_ALPHA_MODE
     mode = socket(mode_node.outputs, "Value")
 
-    def mix(
-        factor: bpy.types.NodeSocket,
-        a: bpy.types.NodeSocket,
-        b: Union[float, bpy.types.NodeSocket],
-    ) -> bpy.types.NodeSocket:
-        node = new_node(node_tree.nodes, bpy.types.ShaderNodeMix)
-        node.data_type = "FLOAT"
-        node_tree.links.new(socket(node.inputs, "Factor"), factor)
-        node_tree.links.new(socket(node.inputs, "A"), a)
-        magic_link(node_tree, b, socket(node.inputs, "B"))
-        return socket(node.outputs, "Result")
-
-    one_bit = make_math_node(node_tree, "COMPARE", mode, 1.0, 0.5)
-    opaque = make_math_node(node_tree, "LESS_THAN", mode, 0.5)
-    stepped = make_math_node(node_tree, "GREATER_THAN", alpha, 0.5)
-    return mix(opaque, mix(one_bit, alpha, stepped), 1.0)
+    switch = new_node(node_tree.nodes, bpy.types.GeometryNodeIndexSwitch)
+    switch.data_type = "FLOAT"
+    switch.index_switch_items.new()
+    node_tree.links.new(socket(switch.inputs, "Index"), mode)
+    socket(switch.inputs, "0").default_value = 1.0
+    node_tree.links.new(
+        socket(switch.inputs, "1"),
+        make_math_node(node_tree, "GREATER_THAN", alpha, 0.5),
+    )
+    node_tree.links.new(socket(switch.inputs, "2"), alpha)
+    return socket(switch.outputs, "Output")
 
 
 def set_format_alpha_mode(node_tree: bpy.types.NodeTree, texture_format: str) -> None:
