@@ -525,7 +525,7 @@ class ShaderNodeRBRTextureInternal(bpy.types.ShaderNodeCustomGroup):
 
 
 def link_texture_for_tree(node_tree: bpy.types.NodeTree, node_name: str) -> None:
-    convert_in = socket(node_tree.nodes["sRGBConverter"].inputs, "Color")
+    convert_in = node_tree.nodes["sRGBConverter"].inputs[0]
     node_tree.links.new(
         convert_in,
         socket(node_tree.nodes[node_name].outputs, "Color"),

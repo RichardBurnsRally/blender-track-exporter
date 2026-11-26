@@ -267,40 +267,43 @@ def fixup_unlit(
     return mix_rgb(node_tree, fac=0.001, a=input, b=(1, 1, 1, 1), clamp=True)
 
 
+def _per_channel(
+    node_tree: bpy.types.NodeTree,
+    input: Union[str, bpy.types.NodeSocket],
+    first: Tuple[NodeVecMathItems, Sequence[float], Optional[Sequence[float]]],
+    second: Tuple[NodeVecMathItems, Sequence[float], Optional[Sequence[float]]],
+) -> bpy.types.NodeSocket:
+    """Two vector math steps on a colour's channels. A string input names the
+    first node instead, to be linked into later."""
+    out: Optional[bpy.types.NodeSocket] = None
+    for i, (operation, b, c) in enumerate((first, second)):
+        node = new_node(node_tree.nodes, bpy.types.ShaderNodeVectorMath)
+        node.operation = operation
+        if out is not None:
+            node_tree.links.new(out, socket(node.inputs, "Vector", 0))
+        elif isinstance(input, str):
+            node.name = input
+        else:
+            node_tree.links.new(input, socket(node.inputs, "Vector", 0))
+        socket(node.inputs, "Vector", 1).default_value = b
+        if c is not None:
+            socket(node.inputs, "Vector", 2).default_value = c
+        out = socket(node.outputs, "Vector")
+    assert out is not None
+    return out
+
+
 def srgb_to_linear(
     node_tree: bpy.types.NodeTree,
     input: Union[str, bpy.types.NodeSocket],
 ) -> bpy.types.NodeSocket:
     # TODO this isn't perfect, it needs a where clause
-    separate = new_node(node_tree.nodes, bpy.types.ShaderNodeSeparateColor)
-    if isinstance(input, str):
-        separate.name = input
-    elif isinstance(input, bpy.types.NodeSocket):
-        node_tree.links.new(input, socket(separate.inputs, "Color"))
-    else:
-        raise NotImplementedError
-    combine = new_node(node_tree.nodes, bpy.types.ShaderNodeCombineColor)
-    for channel in ["Red", "Green", "Blue"]:
-        add = make_math_node(
-            node_tree,
-            "ADD",
-            socket(separate.outputs, channel),
-            0.055,
-        )
-        divide = make_math_node(
-            node_tree,
-            "DIVIDE",
-            add,
-            1.055,
-        )
-        power = make_math_node(
-            node_tree,
-            "POWER",
-            divide,
-            2.4,
-        )
-        node_tree.links.new(power, socket(combine.inputs, channel))
-    return socket(combine.outputs, "Color")
+    return _per_channel(
+        node_tree,
+        input,
+        ("MULTIPLY_ADD", (1 / 1.055,) * 3, (0.055 / 1.055,) * 3),
+        ("POWER", (2.4,) * 3, None),
+    )
 
 
 def linear_to_srgb(
@@ -308,35 +311,12 @@ def linear_to_srgb(
     input: Union[str, bpy.types.NodeSocket],
 ) -> bpy.types.NodeSocket:
     # TODO this isn't perfect, it needs a where clause
-    separate = new_node(node_tree.nodes, bpy.types.ShaderNodeSeparateColor)
-    if isinstance(input, str):
-        separate.name = input
-    elif isinstance(input, bpy.types.NodeSocket):
-        node_tree.links.new(input, socket(separate.inputs, "Color"))
-    else:
-        raise NotImplementedError
-    combine = new_node(node_tree.nodes, bpy.types.ShaderNodeCombineColor)
-    for channel in ["Red", "Green", "Blue"]:
-        power = make_math_node(
-            node_tree,
-            "POWER",
-            socket(separate.outputs, channel),
-            1 / 2.4,
-        )
-        mult = make_math_node(
-            node_tree,
-            "MULTIPLY",
-            power,
-            1.055,
-        )
-        subtract = make_math_node(
-            node_tree,
-            "SUBTRACT",
-            mult,
-            0.055,
-        )
-        node_tree.links.new(subtract, socket(combine.inputs, channel))
-    return socket(combine.outputs, "Color")
+    return _per_channel(
+        node_tree,
+        input,
+        ("POWER", (1 / 2.4,) * 3, None),
+        ("MULTIPLY_ADD", (1.055,) * 3, (-0.055,) * 3),
+    )
 
 
 def vector_exp(
