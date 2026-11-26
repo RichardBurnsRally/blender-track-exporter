@@ -166,9 +166,14 @@ def linear_fog(
         view_depth = narrow(
             socket(camera_data.outputs, "View Z Depth"), bpy.types.NodeSocketFloat
         )
-    fog_numerator = float_subtract(node_tree, fog_end, view_depth)
-    fog_denominator = float_subtract(node_tree, fog_end, fog_start)
-    fog_calc = float_divide(node_tree, fog_numerator, fog_denominator)
+    fog_range = new_node(node_tree.nodes, bpy.types.ShaderNodeMapRange)
+    fog_range.clamp = False
+    node_tree.links.new(view_depth, socket(fog_range.inputs, "Value"))
+    node_tree.links.new(fog_start, socket(fog_range.inputs, "From Min"))
+    node_tree.links.new(fog_end, socket(fog_range.inputs, "From Max"))
+    socket(fog_range.inputs, "To Min").default_value = 1.0
+    socket(fog_range.inputs, "To Max").default_value = 0.0
+    fog_calc = socket(fog_range.outputs, "Result")
     use_fog = rbr_world_float(node_tree, "use_fog")
     inv_fog = float_subtract(node_tree, 1.0, use_fog)
     fog_mix = float_max(node_tree, fog_calc, inv_fog)
