@@ -75,11 +75,17 @@ from .instance_attributes import (
 )
 from .reify import (
     GroupPath,
+    Hop,
     ReifyMaterialError,
     Upstream,
+    convert_constant_hops,
+    convert_linked,
     follow,
+    follow_hops,
+    link_conversions,
     linked,
     node_ref,
+    socket_kind,
 )
 from . import __package__ as base_package
 from .rbr_blender_track_io import (
@@ -87,6 +93,7 @@ from .rbr_blender_track_io import (
     UVVelocity,
     Attribute,
     AttributeOutput,
+    LinkConversion,
     TextureFormatChoice,
     TextureExport,
     Texture,
@@ -1072,7 +1079,14 @@ def reify_shadow_image(
     )
 
 
-def reify_attribute_link(attribute: Upstream) -> Attribute:
+LINK_CONVERSIONS = {
+    "POSITIVE": LinkConversion.GreaterThanZero,
+    "LENGTH": LinkConversion.LengthGreaterThanZero,
+    "TO_COLOR": LinkConversion.ToColor,
+}
+
+
+def reify_attribute_link(attribute: Upstream, hops: List[Hop], kind: str) -> Attribute:
     node = attribute.node
     ref = node_ref(node, attribute.path)
     if not isinstance(node, bpy.types.ShaderNodeAttribute):
@@ -1091,7 +1105,42 @@ def reify_attribute_link(attribute: Upstream) -> Attribute:
         raise NotImplementedError(
             f"Missing attribute link type: {attribute.socket.name}"
         )
-    return Attribute(name=node.attribute_name, output=output)
+    conversions = link_conversions(hops)
+    # A colour input makes a colour of the value anyway.
+    while kind == "COLOR" and conversions and conversions[-1] == "TO_COLOR":
+        conversions.pop()
+    return Attribute(
+        name=node.attribute_name,
+        output=output,
+        conversions=[LINK_CONVERSIONS[c] for c in conversions],
+    )
+
+
+def reify_vertex_value(
+    input: bpy.types.NodeSocket, path: GroupPath, tint_set: str, kind: str
+) -> Union[Attribute, float, List[float]]:
+    """An RBR shader's colour or value input: an attribute to sample, or a
+    constant, converted on the way as Blender would."""
+    source, hops = follow_hops(input, path, tint_set)
+    if not isinstance(source, Upstream):
+        default = source.default_value
+        if not isinstance(default, (float, int, bool)):
+            default = tuple(default)
+        value = convert_constant_hops(default, socket_kind(source), hops, kind)
+        return list(value) if isinstance(value, tuple) else float(value)
+    node = source.node
+    if isinstance(node, bpy.types.ShaderNodeAttribute):
+        return reify_attribute_link(source, hops, kind)
+    if isinstance(node, bpy.types.ShaderNodeValue):
+        value = convert_constant_hops(source.socket.default_value, "FLOAT", hops, kind)
+        return list(value) if isinstance(value, tuple) else float(value)
+    if isinstance(node, bpy.types.ShaderNodeRGB):
+        value = convert_linked(tuple(source.socket.default_value), "COLOR", hops, kind)
+        return list(value) if isinstance(value, tuple) else float(value)
+    raise ReifyMaterialError(
+        "Vertex inputs must come from an attribute, RGB or value node, or be disconnected",
+        node_ref(node, source.path),
+    )
 
 
 def reify_attribute_or_color(
@@ -1099,37 +1148,19 @@ def reify_attribute_or_color(
     path: GroupPath,
     tint_set: str,
 ) -> Union[Attribute, List[float]]:
-    source = follow(color_input, path, tint_set)
-    if not isinstance(source, Upstream):
-        return source.default_value
-    if isinstance(source.node, bpy.types.ShaderNodeAttribute):
-        return reify_attribute_link(source)
-    elif isinstance(source.node, bpy.types.ShaderNodeRGB):
-        return socket(source.node.outputs, "Color").default_value
-    else:
-        raise ReifyMaterialError(
-            "Color input must be an attribute node, RGB input node, or disconnected",
-            node_ref(source.node, source.path),
-        )
+    value = reify_vertex_value(color_input, path, tint_set, "COLOR")
+    assert not isinstance(value, float)
+    return value
 
 
 def reify_attribute_or_float(
     float_input: bpy.types.NodeSocket,
     path: GroupPath,
     tint_set: str,
-) -> Union[Attribute, List[float]]:
-    source = follow(float_input, path, tint_set)
-    if not isinstance(source, Upstream):
-        return source.default_value
-    if isinstance(source.node, bpy.types.ShaderNodeAttribute):
-        return reify_attribute_link(source)
-    elif isinstance(source.node, bpy.types.ShaderNodeValue):
-        return socket(source.node.outputs, "Value").default_value
-    else:
-        raise ReifyMaterialError(
-            "Value input must be an attribute node, value input node, or disconnected",
-            node_ref(source.node, source.path),
-        )
+) -> Union[Attribute, float]:
+    value = reify_vertex_value(float_input, path, tint_set, "FLOAT")
+    assert not isinstance(value, list)
+    return value
 
 
 _ObjectDataMaterial = TypeVar("_ObjectDataMaterial")
