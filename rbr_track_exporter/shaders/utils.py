@@ -356,15 +356,7 @@ def vector_power(
     exponent: float,
     vector: bpy.types.NodeSocket,
 ) -> bpy.types.NodeSocketVector:
-    separate = new_node(node_tree.nodes, bpy.types.ShaderNodeSeparateXYZ)
-    node_tree.links.new(vector, socket(separate.inputs, "Vector"))
-    combine = new_node(node_tree.nodes, bpy.types.ShaderNodeCombineXYZ)
-    for axis in ["X", "Y", "Z"]:
-        math = make_math_node(
-            node_tree, "POWER", in1=socket(separate.outputs, axis), in2=exponent
-        )
-        node_tree.links.new(math, socket(combine.inputs, axis))
-    return narrow(socket(combine.outputs, "Vector"), bpy.types.NodeSocketVector)
+    return vector_math(node_tree, "POWER", vector, (exponent, exponent, exponent))
 
 
 def vector_scale(
