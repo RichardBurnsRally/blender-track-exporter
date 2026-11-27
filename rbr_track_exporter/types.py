@@ -336,8 +336,22 @@ class MaterialId(enum.Enum):
             return MaterialId.DIRT_HARD_WET
         return self
 
+    def wetter(self, steps: int) -> MaterialId:
+        """Step the wetness up, capped at wet. Materials without a wetness are
+        unchanged."""
+        parts = self.name.split("_")
+        for i, part in enumerate(parts):
+            if part in WETNESS_LEVELS:
+                level = min(WETNESS_LEVELS.index(part) + steps, len(WETNESS_LEVELS) - 1)
+                parts[i] = WETNESS_LEVELS[level]
+                return MaterialId["_".join(parts)]
+        return self
+
     def pretty(self) -> str:
         return self.name.replace("_", " ").title()
+
+
+WETNESS_LEVELS = ("DRY", "DAMP", "WET")
 
 
 @dataclass

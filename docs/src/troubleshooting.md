@@ -70,10 +70,10 @@ extra splines give a warning. A segment that bends more than 180° is an error;
 subdivide it. The Scene and Object panels flag most problems before you export.
 See [The Driveline](./objects-driveline.md).
 
-## "Must have an image editor on screen" (material maps)
+## "Open an Image Editor first" (material maps)
 
-The physical-material editor runs inside an Image Editor. Open one before
-clicking **Edit Material Maps**. It also refuses to edit nodes from a linked
+The material map tools run inside an Image Editor. Open one before clicking
+**Edit Material Maps**. It also refuses to edit nodes from a linked
 library — edit those in their source file. See
 [Physical Materials](./physical-materials.md).
 

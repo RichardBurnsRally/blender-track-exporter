@@ -42,6 +42,7 @@ class RBRMaterialPicker(bpy.types.PropertyGroup):
     )
 
     def set_material_id(self, material_id: MaterialId) -> bool:
+        material_id = material_id.simplify()
         is_supported = self.set_from_material_id(material_id)
         if is_supported:
             if self.to_material_id() is not material_id:
@@ -252,41 +253,41 @@ class RBRMaterialPicker(bpy.types.PropertyGroup):
     )
 
     def draw(self, context: bpy.types.Context, ui: bpy.types.UILayout) -> None:
-        ui.prop(self, "category", expand=True)
+        ui.row(align=True).prop(self, "category", expand=True)
         ui.separator(factor=0.5)
         if self.category == "ROAD":
-            ui.prop(self, "road_surface", expand=True)
+            ui.row(align=True).prop(self, "road_surface", expand=True)
             ui.separator(factor=0.5)
             if self.road_surface == "TARMAC":
-                ui.prop(self, "tarmac_type", expand=True)
+                ui.row(align=True).prop(self, "tarmac_type", expand=True)
                 if self.tarmac_type != "BLACK_ICE":
-                    ui.prop(self, "tarmac_cleanliness", expand=True)
-                    ui.prop(self, "wetness", expand=True)
+                    ui.row(align=True).prop(self, "tarmac_cleanliness", expand=True)
+                    ui.row(align=True).prop(self, "wetness", expand=True)
             elif self.road_surface == "GRAVEL":
-                ui.prop(self, "gravel_type", expand=True)
-                ui.prop(self, "gravel_depth", expand=True)
-                ui.prop(self, "wetness", expand=True)
+                ui.row(align=True).prop(self, "gravel_type", expand=True)
+                ui.row(align=True).prop(self, "gravel_depth", expand=True)
+                ui.row(align=True).prop(self, "wetness", expand=True)
             elif self.road_surface == "SNOW":
-                ui.prop(self, "snow_subsurface", expand=True)
+                ui.row(align=True).prop(self, "snow_subsurface", expand=True)
                 if self.snow_subsurface != "BANK":
-                    ui.prop(self, "snow_depth", expand=True)
+                    ui.row(align=True).prop(self, "snow_depth", expand=True)
             elif self.road_surface == "COBBLE":
-                ui.prop(self, "cobble_type", expand=True)
-                ui.prop(self, "wetness", expand=True)
+                ui.row(align=True).prop(self, "cobble_type", expand=True)
+                ui.row(align=True).prop(self, "wetness", expand=True)
         elif self.category == "GROUND":
-            ui.prop(self, "ground_surface", expand=True)
+            ui.row(align=True).prop(self, "ground_surface", expand=True)
             ui.separator(factor=0.5)
             if self.ground_surface == "WATER":
                 pass
             elif self.ground_surface == "GRASS":
-                ui.prop(self, "hardness", expand=True)
-                ui.prop(self, "wetness", expand=True)
+                ui.row(align=True).prop(self, "hardness", expand=True)
+                ui.row(align=True).prop(self, "wetness", expand=True)
             elif self.ground_surface == "ROUGH":
-                ui.prop(self, "rough_type", expand=True)
-                ui.prop(self, "wetness", expand=True)
+                ui.row(align=True).prop(self, "rough_type", expand=True)
+                ui.row(align=True).prop(self, "wetness", expand=True)
             elif self.ground_surface == "DIRT":
-                ui.prop(self, "hardness", expand=True)
-                ui.prop(self, "wetness", expand=True)
+                ui.row(align=True).prop(self, "hardness", expand=True)
+                ui.row(align=True).prop(self, "wetness", expand=True)
         elif self.category == "PASSTHROUGH":
             pass
 
@@ -457,7 +458,7 @@ class RBRMaterialPicker(bpy.types.PropertyGroup):
             self.tarmac_cleanliness = "COVERED"
             self.wetness = "WET"
 
-        if material_id is MaterialId.BLACK_ICE:
+        elif material_id is MaterialId.BLACK_ICE:
             self.category = "ROAD"
             self.road_surface = "TARMAC"
             self.tarmac_type = "BLACK_ICE"
@@ -1548,6 +1549,110 @@ class RBRFallbackMaterials(bpy.types.PropertyGroup):
             self.wet_worn.material_id = paint_material
 
 
+WETTER_CONDITIONS = ((SurfaceType.DAMP, 1), (SurfaceType.WET, 2))
+
+
+def derive_map(source: RBRMaterialMap, target: RBRMaterialMap, steps: int) -> None:
+    wetter: dict[int, int] = {}
+    for source_row, target_row in zip(source.rows, target.rows):
+        for source_col, target_col in zip(source_row.cols, target_row.cols):
+            value = source_col.material_id
+            derived = wetter.get(value)
+            if derived is None:
+                derived = MaterialId(value).wetter(steps).value
+                wetter[value] = derived
+            if target_col.material_id != derived:
+                target_col.material_id = derived
+
+
+def _sync_auto_wetness(self: Any, context: bpy.types.Context) -> None:
+    self.sync()
+
+
+def _auto_wetness_prop(surface_type: SurfaceType, age: SurfaceAge) -> Any:
+    return bpy.props.BoolProperty(
+        name=f"{surface_type.pretty()}/{age.pretty()}",
+        description=f"Derive the {surface_type.to_string()}/{age.to_string()} maps and fallback from dry/{age.to_string()}",
+        default=False,
+        options=set(),
+        update=_sync_auto_wetness,
+    )
+
+
+class RBRAutoWetness(bpy.types.PropertyGroup):
+    """Which damp/wet conditions are derived from the dry condition of the same
+    age, by making each material one (damp) or two (wet) steps wetter."""
+
+    damp_new: _auto_wetness_prop(SurfaceType.DAMP, SurfaceAge.NEW)  # type: ignore
+    damp_normal: _auto_wetness_prop(SurfaceType.DAMP, SurfaceAge.NORMAL)  # type: ignore
+    damp_worn: _auto_wetness_prop(SurfaceType.DAMP, SurfaceAge.WORN)  # type: ignore
+    wet_new: _auto_wetness_prop(SurfaceType.WET, SurfaceAge.NEW)  # type: ignore
+    wet_normal: _auto_wetness_prop(SurfaceType.WET, SurfaceAge.NORMAL)  # type: ignore
+    wet_worn: _auto_wetness_prop(SurfaceType.WET, SurfaceAge.WORN)  # type: ignore
+
+    @staticmethod
+    def prop_name(surface_type: SurfaceType, surface_age: SurfaceAge) -> str:
+        return f"{surface_type.to_string()}_{surface_age.to_string()}"
+
+    def is_auto(self, surface_type: SurfaceType, surface_age: SurfaceAge) -> bool:
+        if surface_type is SurfaceType.DRY:
+            return False
+        return bool(getattr(self, self.prop_name(surface_type, surface_age)))
+
+    def set_auto(
+        self, surface_type: SurfaceType, surface_age: SurfaceAge, value: bool
+    ) -> None:
+        if surface_type is not SurfaceType.DRY:
+            setattr(self, self.prop_name(surface_type, surface_age), value)
+
+    def set_all(self, value: bool) -> None:
+        for surface_type, _ in WETTER_CONDITIONS:
+            for age in SurfaceAge:
+                self.set_auto(surface_type, age, value)
+
+    # 'other' has type RBRAutoWetness, see RBRMaterialMaps.copy.
+    def copy(self, other: Any) -> None:
+        for surface_type, _ in WETTER_CONDITIONS:
+            for age in SurfaceAge:
+                self.set_auto(surface_type, age, other.is_auto(surface_type, age))
+
+    def sync(
+        self, surface_age: Optional[SurfaceAge] = None, region: Optional[int] = None
+    ) -> None:
+        """Re-derive the automatic conditions, optionally only those of one age
+        or one region."""
+        from .editor import invalidate
+
+        invalidate()
+        node_tree = self.id_data
+        if not isinstance(node_tree, bpy.types.NodeTree):
+            return
+        internal: Any = node_tree.nodes.get("internal")
+        if internal is None:
+            return
+        ages = list(SurfaceAge) if internal.is_road_surface else [SurfaceAge.NEW]
+        if surface_age is not None:
+            ages = [age for age in ages if age is surface_age]
+        regions = internal.material_maps
+        if region is not None:
+            regions = [regions[region]] if region < len(regions) else []
+        fallbacks: RBRFallbackMaterials = internal.fallback_materials
+        for surface_type, steps in WETTER_CONDITIONS:
+            for age in ages:
+                if not self.is_auto(surface_type, age):
+                    continue
+                for maps in regions:
+                    derive_map(
+                        maps.get_map(SurfaceType.DRY, age),
+                        maps.get_map(surface_type, age),
+                        steps,
+                    )
+                derived = fallbacks.get_condition(SurfaceType.DRY, age).wetter(steps)
+                target = getattr(fallbacks, self.prop_name(surface_type, age))
+                if target.material_id != derived.value:
+                    target.material_id = derived.value
+
+
 def register() -> None:
     bpy.utils.register_class(RBRMaterialPicker)
     bpy.utils.register_class(RBRPropertyNodePointer)
@@ -1556,9 +1661,11 @@ def register() -> None:
     bpy.utils.register_class(RBRMaterialMap)
     bpy.utils.register_class(RBRMaterialMaps)
     bpy.utils.register_class(RBRFallbackMaterials)
+    bpy.utils.register_class(RBRAutoWetness)
 
 
 def unregister() -> None:
+    bpy.utils.unregister_class(RBRAutoWetness)
     bpy.utils.unregister_class(RBRFallbackMaterials)
     bpy.utils.unregister_class(RBRMaterialMaps)
     bpy.utils.unregister_class(RBRMaterialMap)

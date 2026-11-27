@@ -1,10 +1,8 @@
 from dataclasses import dataclass
 from typing import Optional
 
-import bpy
-
 from ..types import MaterialMap
-from .properties import RBRMaterialMaps
+from .properties import RBRMaterialMap
 
 
 @dataclass
@@ -15,26 +13,14 @@ class PhysicalMaterialClipboard:
 
     clipboard_material: Optional[MaterialMap] = None
 
-    def copy(
-        self,
-        material_maps: "bpy.types.bpy_prop_collection[RBRMaterialMaps]",
-        material_index: int,
-    ) -> None:
-        """Copy to the clipboard"""
-        matmap = material_maps[material_index].get_active_map()
-        self.clipboard_material = matmap.to_format()
+    def copy(self, material_map: RBRMaterialMap) -> None:
+        self.clipboard_material = material_map.to_format()
 
-    def paste(
-        self,
-        material_maps: "bpy.types.bpy_prop_collection[RBRMaterialMaps]",
-        material_index: int,
-    ) -> bool:
-        """Paste from the clipboard. If the clipboard is empty, returns False.
-        Successful pastes return True."""
+    def paste(self, material_map: RBRMaterialMap) -> bool:
+        """Paste from the clipboard. If the clipboard is empty, returns False."""
         if self.clipboard_material is None:
             return False
-        matmap = material_maps[material_index].get_active_map()
-        matmap.set_from_format(self.clipboard_material)
+        material_map.set_from_format(self.clipboard_material)
         return True
 
 

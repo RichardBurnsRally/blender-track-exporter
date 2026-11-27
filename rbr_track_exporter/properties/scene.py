@@ -8,7 +8,7 @@ from ..gnodes.brake_wall import make_brakewall_node_group
 from ..types import *
 from ..shaders import sky, shader_node, texture, brake_wall
 from ..shaders.tint_set import ShaderNodeRBRTintSet
-from ..physical_material_editor.operator import RBR_OT_edit_material_maps
+from ..physical_material_editor import editor as material_map_editor
 from .curve import fixup_driveline_obj, fixup_brake_wall_object
 from ..properties.world import RBRWorldSettings
 from ..gpu.clouds import draw_clouds
@@ -164,27 +164,18 @@ class RBRSceneSettings(bpy.types.PropertyGroup):
             tint_sets.append(TintSet.MORNING)
         return tint_sets
 
-    def __update_surface_type__(self, _context: bpy.types.Context) -> None:
-        surface_type = self.get_active_surface_type_opt()
-        available_surface_types = self.selected_surface_types()
-        if surface_type not in available_surface_types:
-            self.active_surface_type = available_surface_types[0].name
-
     surface_type_dry: bpy.props.BoolProperty(  # type: ignore
         name="Dry",
         description="The road surface can be dry",
         default=True,
-        update=__update_surface_type__,
     )
     surface_type_damp: bpy.props.BoolProperty(  # type: ignore
         name="Damp",
         description="The road surface can be damp",
-        update=__update_surface_type__,
     )
     surface_type_wet: bpy.props.BoolProperty(  # type: ignore
         name="Wet",
         description="The road surface can be wet",
-        update=__update_surface_type__,
     )
 
     def selected_surface_types(self) -> List[SurfaceType]:
@@ -248,17 +239,13 @@ class RBRSceneSettings(bpy.types.PropertyGroup):
     def __update_conditions__(self, context: bpy.types.Context) -> None:
         for node_tree in texture.all_rbr_texture_node_trees():
             texture.link_context_active_texture(context, node_tree)
-        if RBR_OT_edit_material_maps.active_operator is not None:
-            RBR_OT_edit_material_maps.active_operator.update_active_texture(context)
+        material_map_editor.refresh_images(context)
         self.update_world_context(context)
 
     active_surface_type: bpy.props.EnumProperty(  # type: ignore
         name="Surface Type",
         default=SurfaceType.DRY.value,
-        items=lambda self, context: [
-            (s.name, s.pretty(), s.description(), s.value)
-            for s in self.selected_surface_types()
-        ],
+        items=[(s.name, s.pretty(), s.description(), s.value) for s in SurfaceType],
         update=__update_conditions__,
     )
     active_surface_age: bpy.props.EnumProperty(  # type: ignore

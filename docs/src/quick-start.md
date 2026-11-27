@@ -64,8 +64,8 @@ This is where the car spawns; the export fails without one.
 Open an **Image Editor**, then click **Edit Material Maps** on the road's RBR
 Texture node to paint the
 [physical (collision) material maps](./physical-materials.md) that decide grip
-and particles per surface region. While editing, the **RBR Material Picker**
-is in the Image Editor sidebar.
+and particles per surface region with the **Paint Materials** tool. Pick the
+material in the Image Editor sidebar's **Active Tool** panel.
 
 ## 7. Export
 

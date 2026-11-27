@@ -7,9 +7,20 @@ Changes since 1.0.0-rc.5, for the next release.
 - **Undefined material warning.** Export warns about each texture whose
   material maps leave cells undefined in an exported dry/damp/wet condition,
   so unpainted cells and unset fallbacks don't go unnoticed.
+- **Automatic damp and wet material maps.** Damp and wet material maps and
+  fallbacks can follow the dry ones, with each material made one or two steps
+  wetter. New textures start automatic; switch conditions in the new **RBR
+  Material Maps** panel in the Image Editor sidebar.
 
 ## Changed
 
+- **Material map editor tools.** The material map editor is now four Image
+  Editor tools, **Paint Materials**, **Fill Materials**, **Sample Material**
+  and **Material Map Regions**, instead of a modal editor. Every stroke, fill and region change
+  can be undone, the material palette is in the **Active Tool** panel, and the
+  view no longer jumps when switching condition. Conditions are picked from a
+  grid in the **RBR Material Maps** panel, and **Active Surface** can show
+  surfaces the stage doesn't export.
 - **Simpler shader internals.** Simplified the internal representation of
   some custom node types.
 

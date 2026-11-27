@@ -14,22 +14,57 @@ objects such as trees, rocks, barriers and spectators is set per object with
 
 1. Have an **Image Editor** somewhere on screen.
 2. Click **Edit Material Maps** on an **RBR Texture** node in the Shader
-   Editor. Every Image Editor switches to that texture's image for the active
-   surface, and the map editor takes over as a modal tool.
-3. The **RBR Material Picker** panel appears in the Image Editor sidebar
-   (**Tool** tab).
+   Editor. Every Image Editor switches to its **View** mode and shows that
+   texture's image for the active condition, with the toolbar and sidebar
+   open, and the **Paint Materials** tool becomes active.
+
+The texture stays the one being edited until you click **Edit Material Maps**
+on another. The overlay and panels show whenever one of the material map tools
+is active; **Esc** or picking any other tool gets back to the plain image.
 
 The editor won't edit a node that comes from a linked library — edit those in
 their source file.
 
-## The material picker
+## Tools
 
-In the **RBR Material Picker** panel:
+The material map tools sit in the Image Editor's toolbar (**T**), after the
+built-in tools:
 
-- **Material Map Transparency** — how strongly the material overlay is drawn
-  over the texture, so you can see both.
-- **Material Palette** — the material you paint with. Pick a category, then
-  narrow it down:
+- **Paint Materials** — click or drag to paint the active material into
+  cells.
+- **Fill Materials** — click to fill the connected cells of the same
+  material.
+- **Sample Material** — click a cell to paint with its material, or empty
+  space for the fallback material.
+- **Material Map Regions** — click a region to select it, drag it or its
+  handles to move or resize it, or drag on empty space to add one. Clicking
+  where regions overlap cycles through them. **Delete** or **Backspace**
+  removes the selected region.
+
+**Shift+Space** then **P**, **F**, **S** or **R** picks Paint, Fill, Sample or
+Regions. Middle mouse pans and zooms as usual, and every change can be undone.
+The keys can be changed in **Preferences ▸ Keymap**, under **Image Editor
+Tool: View, Paint Materials** and the like, and **Toolbar Popup** for the
+Shift+Space letters.
+
+Paint and fill work on the selected region where it's under the cursor, and
+otherwise on the topmost region there, which they then select. The selected
+region shows its cell grid; the hovered cell is highlighted with its material
+named next to it.
+
+Each region is a 16×16 grid of material cells covering a rectangle of the
+texture, so a single texture can carry several material areas at different
+resolutions. Regions may overlap.
+
+## Tool settings
+
+The **Active Tool** panel in the sidebar (**Tool** tab) holds the tool's
+settings:
+
+- **Overlay Opacity** — how strongly the material overlay is drawn over the
+  texture, so you can see both.
+- **Material** (painting tools) — the material you paint with. Pick a
+  category, then narrow it down:
   - **Road** — **Tarmac** (fine, medium, coarse or black ice; clean, sprinkled
     or covered), **Gravel** (US, fine, medium, coarse or British; shallow, deep
     or deeper), **Snow** (on gravel, on ice, or snowbank) and **Cobble**
@@ -39,36 +74,32 @@ In the **RBR Material Picker** panel:
   - **Passthrough**.
 
   Each material has a fixed identifying colour used in the overlay.
+- **Repeat** **X** / **Y** and **Delete Region** (regions tool) — make the
+  selected region span and repeat across the whole texture width / height, or
+  remove it.
 
-## Editing
+Below it, the **RBR Material Maps** panel shows the texture being edited, and:
 
-The editor works in modes. The current mode is shown in the lower-left corner
-of the Image Editor, and its controls in the status bar. Middle mouse pans and
-zooms in every mode.
-
-- **Overview** — shows the map regions over the texture. Click a region to move
-  or resize it, right-click to create a new one, **F** to set the fallback
-  material, **Esc** to exit the editor.
-- **Create New Map** — drag out the new region's bounds. **Esc** goes back.
-- **Move/Resize Map** — drag the region or its handles. Click an overlapping
-  region to switch to it, or empty space to go back. **X** / **Y** make the
-  region span and repeat across the whole texture width / height. **Delete** or **Backspace**
-  removes it. **Tab** edits its materials.
-- **Edit Materials** — paint the region's 16×16 grid of cells. **T** cycles
-  the tool between **Paint**, **Bucket fill** and **Edit UV** (which passes
-  clicks through to the Image Editor). Right-click samples the hovered cell's
-  material. **C** / **V** copy and paste the whole grid, also between textures.
-  **Tab** goes back to move/resize, **Esc** to overview.
-
-Each region is a 16×16 grid of material cells covering a rectangle of the
-texture, so a single texture can carry several material areas at different
-resolutions. Regions may overlap.
+- **Set Fallback** — sets the shown condition's fallback material, named
+  beside it, to the active material.
+- A grid of the texture's conditions: a row per age (only **New** for a texture
+  that isn't a road surface) and a column per surface type.
+  - The eye shows and paints that condition. It sets the same **Active
+    Surface** as [Scene Settings](./scene-settings.md), and works for surfaces
+    the stage doesn't export too. A warning sign in place of the eye means one
+    of the condition's region cells or its fallback is still undefined.
+  - The link makes a damp or wet condition automatic from dry (see
+    [Automatic damp and wet](#automatic-damp-and-wet)). Drag across the
+    buttons to switch several at once.
+- **Region** **Copy** / **Paste** — copy the selected region's whole grid for
+  the shown condition, and paste it into another region, also on another
+  texture.
 
 ## How faces get their material
 
 On export, each collision triangle takes the smallest region that wholly
 contains its UVs. A triangle that fits no region gets the texture's **fallback
-material**, shown in the overview corner and set with **F** from the palette.
+material**, shown and set in the **RBR Material Maps** panel.
 On a material with a second texture, the triangle's second material comes from
 that texture's maps in the same way.
 
@@ -84,5 +115,25 @@ shows and paints the one for the **Active Surface** you set in
 review the maps for different conditions.
 
 A texture that isn't a **Road Surface** only uses the **New** age: its grids
-follow the surface type alone, and only its New fallbacks are exported, so set
-those with the active age on New.
+and fallbacks follow the surface type alone, whatever the active age.
+
+## Automatic damp and wet
+
+A damp or wet condition can be **automatic**: its maps and fallback are kept
+in step with the dry condition of the same age, with every material made one
+step wetter for damp and two for wet, stopping at wet. Dry gravel becomes damp
+gravel in the damp maps and wet gravel in the wet maps; a damp material painted
+into the dry maps is wet in both. Materials without a wetness, such as rocks,
+water or undefined cells, are copied as they are.
+
+New textures start with every damp and wet condition automatic. Textures from
+imported tracks, migrated files and earlier versions of the addon start
+manual. Switch conditions with the links in the **RBR Material Maps** panel;
+switching one on
+replaces its maps and fallback with ones derived from dry.
+
+An automatic condition can't be painted, filled, pasted into or given a
+fallback; switch it off first. The **RBR Material Maps** panel says when the
+shown condition is automatic. Normal and worn are never derived from new:
+paint them yourself (copy and paste helps), and their damp and wet follow them.
+

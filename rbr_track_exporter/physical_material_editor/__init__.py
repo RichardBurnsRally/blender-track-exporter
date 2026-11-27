@@ -1,15 +1,21 @@
-from . import operator
+from . import editor
+from . import ops
 from . import panel
 from . import properties
+from . import tools
 
 
 def register() -> None:
     properties.register()
-    operator.register()
+    editor.register()
+    ops.register()
+    tools.register()
     panel.register()
 
 
 def unregister() -> None:
     panel.unregister()
-    operator.unregister()
+    tools.unregister()
+    ops.unregister()
+    editor.unregister()
     properties.unregister()

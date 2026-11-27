@@ -16,7 +16,6 @@ from ..properties.scene import (
     RBR_OT_prepare_for_shadow_texture_bake,
     RBR_OT_prepare_for_shadow_vcol_bake,
 )
-from ..physical_material_editor.operator import RBR_OT_edit_material_maps
 from .. import __package__ as base_package
 from .. import migration
 

@@ -41,6 +41,7 @@ CUSTOM_PROPS = {
     "Mesh": ["rbr_mesh_settings"],
     "Camera": ["rbr_camera_settings"],
     "Context": ["rbr_export_message"],
+    "WindowManager": ["rbr_material_map_texture", "rbr_material_map_region"],
 }
 
 SOCKET_VALUE_ATTRS = {

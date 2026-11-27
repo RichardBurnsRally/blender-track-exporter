@@ -54,8 +54,8 @@ Assign the scene's special objects here:
 - **Surfaces** — tick the surface states the stage supports: **Dry**, **Damp**,
   **Wet**. At least one is required.
 - **Active Surface** — the surface **type** and **age** (New / Normal / Worn)
-  you are previewing. This drives what the material editor and viewport resolve
-  against. See [RBR Glossary](./glossary.md).
+  you are previewing, including surfaces the stage doesn't export. This drives
+  what the material editor and viewport resolve against. See [RBR Glossary](./glossary.md).
 
 ## Tint Sets
 

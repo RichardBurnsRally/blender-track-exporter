@@ -12,10 +12,11 @@ from ..blender_utils import group_input, group_output, narrow, new_node, socket
 from ..types import OperatorReturn
 
 from ..types import SurfaceType, SurfaceAge
-from ..physical_material_editor.operator import RBR_OT_edit_material_maps
+from ..physical_material_editor import editor as material_map_editor
 from ..physical_material_editor.properties import (
     RBRPropertyNodePointer,
     RBRMaterialMaps,
+    RBRAutoWetness,
     RBRFallbackMaterials,
     RBRMaterialPicker,
 )
@@ -133,6 +134,7 @@ def recreate_internals(
             getattr(internal.fallback_materials, condition).material_id = getattr(
                 old_internal.fallback_materials, condition
             ).material_id
+        internal.auto_wetness.copy(old_internal.auto_wetness)
         node_tree.nodes.remove(old_internal)
     for name, image in images.items():
         narrow(node_tree.nodes[name], bpy.types.ShaderNodeTexImage).image = image
@@ -463,9 +465,9 @@ class ShaderNodeRBRTextureInternal(bpy.types.ShaderNodeCustomGroup):
         )
         parent_tree = self.id_data
         link_texture_for_tree(narrow(parent_tree, bpy.types.NodeTree), name)
+        self.auto_wetness.sync()
         # This might update an unrelated editor, but that's fine.
-        if RBR_OT_edit_material_maps.active_operator is not None:
-            RBR_OT_edit_material_maps.active_operator.update_active_texture(context)
+        material_map_editor.refresh_images(context)
 
     is_road_surface: bpy.props.BoolProperty(  # type: ignore
         name="Road Surface (diffuse only)",
@@ -512,6 +514,10 @@ class ShaderNodeRBRTextureInternal(bpy.types.ShaderNodeCustomGroup):
 
     fallback_materials: bpy.props.PointerProperty(  # type: ignore
         type=RBRFallbackMaterials,
+    )
+
+    auto_wetness: bpy.props.PointerProperty(  # type: ignore
+        type=RBRAutoWetness,
     )
 
     material_picker: bpy.props.PointerProperty(  # type: ignore
@@ -813,6 +819,7 @@ class RBR_OT_new_texture(bpy.types.Operator):
         if node is None:
             return {"CANCELLED"}
         node.node_tree = setup_texture_node_tree(context, "Name", False)
+        node.get_internal().auto_wetness.set_all(True)
         return {"FINISHED"}
 
 
